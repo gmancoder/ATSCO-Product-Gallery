@@ -1,0 +1,1079 @@
+using System;
+using System.Data;
+using System.Configuration;
+using System.Collections;
+using System.Web;
+using System.Web.Security;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Web.UI.WebControls.WebParts;
+using System.Web.UI.HtmlControls;
+using System.IO;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.Text;
+
+public partial class admin_modules_product_gallery_products : System.Web.UI.Page
+{
+    protected Categories _category = new Categories();
+    protected Products _product = new Products();
+
+    public int dir = 0;
+    public int dir2 = 0;
+    public string sort = "";
+    public string orderby = "";
+    public string orderdir = "";
+
+    public string arrowi = "spacer";
+    public string arrown = "spacer";
+    public string arrowc = "spacer";
+    public string arrowp = "spacer";
+    public string arrowf = "spacer";
+    public string arrowa = "spacer";
+    public string arrowac = "spacer";
+    public string arrowfe = "spacer";
+
+    public int productid = 0;
+    public int categoryid = 0;
+
+    public const int maxImageWidth = 505;
+    protected void Page_Load(object sender, EventArgs e)
+    {
+        Page.Title = "Website Administration";
+
+        #region Event Wiring
+        AddProductButton.Click += new ImageClickEventHandler(AddProductButton_Click);
+        EditProductButton.Click += new ImageClickEventHandler(EditProductButton_Click);
+        ddlCategories.SelectedIndexChanged += new EventHandler(ddlCategories_SelectedIndexChanged);
+        gvProducts.PageIndexChanging += new GridViewPageEventHandler(gvProducts_PageIndexChanging);
+        #endregion
+
+        SetPermissions();
+
+        try
+        {
+            productid = Convert.ToInt32(Request.QueryString["productid"]);
+        }
+        catch { }
+
+        try
+        {
+            categoryid = Convert.ToInt32(Request.QueryString["categoryid"]);
+        }
+        catch { }
+
+        string action = "";
+        if (Request.QueryString["action"] != null)
+        {
+            action = Request.QueryString["action"];
+        }
+
+        if (!Page.IsPostBack)
+        {
+            
+            switch (action)
+            {
+                case "add":
+                    Sessions.checkPermission("Product Gallery_Add", "products.aspx?error=You do not have permission to add products");
+
+                    chkActive.Checked = true;
+                    EditProductButton.Visible = false;
+                    mvProducts.SetActiveView(form);
+                    CategoryList(ref lstCategories, 0, 0, "");
+                    PricingBoxes();
+                    try
+                    {
+                        lstCategories.Items.FindByValue(categoryid.ToString()).Selected = true;
+                    }
+                    catch { }
+
+                    if (_product.getFeatureCount() >= 1)
+                    {
+                        chkFeature.Enabled = false;
+                    }
+                    break;
+                case "edit":
+                    Sessions.checkPermission("Product Gallery_Edit", "products.aspx?error=You do not have permission to edit products");
+                    if (productid > 0)
+                    {
+                        DataSet products = _product.getProductByID(productid);
+                        if (products.Tables[0].Rows.Count > 0)
+                        {
+                            DataRow prod = products.Tables[0].Rows[0];
+                            txtName.Text = prod["ProductName"].ToString();
+                            //categoryid = Convert.ToInt32(prod["categoryid"]);
+                            txtSummary.Text = prod["shortdescription"].ToString();
+                            txtSizes.Text = prod["sizes"].ToString();
+                            txtTags.Text = prod["tags"].ToString();
+                            fckFeatures.Value = prod["features"].ToString();
+                            //txtPrice.Text = Convert.ToString(Math.Round(Convert.ToDecimal(prod["price"].ToString()), 2));
+                            //txtWeight.Text = prod["weight"].ToString();
+                            //chkHazard.Checked = Convert.ToBoolean(prod["hazardous"]);
+
+                            if (prod["productimage"].ToString() != "")
+                            {
+                                currImage.Visible = true;
+                                imgCurrentImg.ImageUrl = "/images/products/thumbs/" + prod["productimage"].ToString();
+                                imgCurrentImg.AlternateText = txtName.Text;
+
+                                hlCurrImage.NavigateUrl = "/images/products/" + prod["productimage"].ToString();
+                                hlCurrImage.Target = "_blank";
+                            }
+                            if (prod["msds"].ToString() != "")
+                            {
+                                currDocument.Visible = true;
+                                hlCurrDocument.NavigateUrl = "/productinformation/msds/" + prod["msds"].ToString();
+                                hlCurrDocument.Target = "_blank";
+                            }
+                            if (prod["spec"].ToString() != "")
+                            {
+                                pnlCurrSpec.Visible = true;
+                                hlCurrSpec.NavigateUrl = "/productinformation/spec/" + prod["spec"].ToString();
+                                hlCurrSpec.Target = "_blank";
+                            }
+                            fckDetails.Value = prod["productdetails"].ToString();
+                            chkActive.Checked = Convert.ToBoolean(prod["purchase"]);
+                            chkViewDesc.Checked = Convert.ToBoolean(prod["viewDesc"]);
+                            chkFeature.Checked = Convert.ToBoolean(prod["feature"]);
+
+                            if (_product.getFeatureCount() >= 1 && !chkFeature.Checked)
+                            {
+                                chkFeature.Enabled = false;
+                            }
+
+                            CategoryList(ref lstCategories, 0, 0, "");
+                            PricingBoxes();
+
+                            DataSet allCat = _product.GetAllCategoriesForProduct(productid);
+
+                            foreach (DataRow cat in allCat.Tables[0].Rows)
+                            {
+                                try
+                                {
+                                    lstCategories.Items.FindByValue(cat["categoryid"].ToString()).Selected = true;
+                                }
+                                catch { }
+                            }
+
+                            DataSet allPrices = _product.GetAllPrices(productid);
+                            DataRow price = null;
+                            if (allPrices.Tables[0].Rows.Count > 0)
+                            {
+                                price = allPrices.Tables[0].Rows[0];
+                                txtPrice1.Text = price["price"].ToString();
+                                try
+                                {
+                                    ddlPriceType1.Items.FindByValue(price["pricetypeid"].ToString()).Selected = true;
+                                }
+                                catch { }
+
+                                if (Convert.ToBoolean(price["display"]))
+                                {
+                                    rblPrice1IsPrimary.Checked = true;
+                                }
+
+                                if (allPrices.Tables[0].Rows.Count > 1)
+                                {
+                                    price = allPrices.Tables[0].Rows[1];
+                                    txtPrice2.Text = price["price"].ToString();
+                                    try
+                                    {
+                                        ddlPriceType2.Items.FindByValue(price["pricetypeid"].ToString()).Selected = true;
+                                    }
+                                    catch { }
+
+                                    if (Convert.ToBoolean(price["display"]))
+                                    {
+                                        rblPrice2IsPrimary.Checked = true;
+                                    }
+                                }
+
+                                if (allPrices.Tables[0].Rows.Count > 2)
+                                {
+                                    price = allPrices.Tables[0].Rows[2];
+                                    txtPrice3.Text = price["price"].ToString();
+                                    try
+                                    {
+                                        ddlPriceType3.Items.FindByValue(price["pricetypeid"].ToString()).Selected = true;
+                                    }
+                                    catch { }
+
+                                    if (Convert.ToBoolean(price["display"]))
+                                    {
+                                        rblPrice3IsPrimary.Checked = true;
+                                    }
+                                }
+                            }
+
+                            txtManufaturer.Text = prod["manufacturer"].ToString();
+                            txtShortTitle.Text = prod["shorttitle"].ToString();
+                            txtACode.Text = prod["acode"].ToString();
+                        }
+                        else
+                        {
+                            Response.Redirect("products.aspx?error=Product ID Invalid");
+                        }
+                    }
+                    else
+                    {
+                        Response.Redirect("products.aspx?error=No Product Selected");
+                    }
+                    AddProductButton.Visible = false;
+                    mvProducts.SetActiveView(form);
+                    break;
+
+                case "view":
+
+                    if (productid > 0)
+                    {
+                        DetailsView1.DataSource = _product.getProductByID(productid);
+                        DetailsView1.DataBind();
+
+                        DetailsView1.Controls[0].FindControl("edit").Visible = Sessions.getUserPermission("Product Gallery_Edit");
+                        DetailsView1.Controls[0].FindControl("delete").Visible = Sessions.getUserPermission("Product Gallery_Delete");
+                    }
+                    else
+                    {
+                        Response.Redirect("products.aspx?error=Product ID Invalid");
+                    }
+
+                    mvProducts.SetActiveView(details);
+                    break;
+
+                case "removeImage":
+                    if (productid > 0)
+                    {
+                        _product.ResetImage(productid);
+                        Response.Redirect("products.aspx?action=view&productid=" + productid + "&msg=Product Image has been reset");
+                    }
+                    break;
+
+                case "toggle":
+
+                    string redirect = "";
+                    string col = "";
+
+                    if (productid > 0)
+                    {
+                        if (Request.QueryString["redirect"] != null)
+                        {
+                            redirect = Request.QueryString["redirect"];
+                        }
+                        if (Request.QueryString["col"] != null)
+                        {
+                            col = Request.QueryString["col"];
+                            col = Server.HtmlEncode(col);
+
+                            if (!_product.isActive(productid, col))
+                            {
+                                switch (col)
+                                {
+                                    case "hazardous":
+                                    case "viewDesc":
+                                    case "purchase":
+                                        _product.setActive(productid, 1, col);
+                                        break;
+                                    case "feature":
+                                        if (_product.isActive(productid, "purchase"))
+                                        {
+                                            if (_product.getFeatureCount() >= 1)
+                                            {
+                                                Response.Redirect("products.aspx?action=" + redirect + "&productid=" + productid + "&error=Maximum number of allowable featured products cannot be exceeded");
+                                            }
+                                            else
+                                            {
+                                                _product.setActive(productid, 1, col);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            Response.Redirect("products.aspx?action=" + redirect + "&productid=" + productid + "&error=Product is not active");
+                                        }
+                                        break;
+                                    default:
+                                        Response.Redirect("products.aspx?action=" + redirect + "&productid=" + productid + "&error=Invalid Column");
+                                        break;
+                                }
+
+                                Response.Redirect("products.aspx?action=" + redirect + "&productid=" + productid + "&msg=" + Utility.titleCase(col) + " status has been changed");
+
+                            }
+                            else
+                            {
+                                switch (col)
+                                {
+                                    case "purchase":
+                                        _product.setActive(productid, 0, "feature");
+                                        break;
+                                }
+                                try
+                                {
+                                    _product.setActive(productid, 0, col);
+                                    Response.Redirect("products.aspx?action=" + redirect + "&productid=" + productid + "&msg=" + Utility.titleCase(col) + " status has been changed");
+                                }
+                                catch
+                                { }
+                                Response.Redirect("products.aspx?action=" + redirect + "&productid=" + productid + "&error=Invalid Column");
+                            }
+                        }
+                        else
+                        {
+                            Response.Redirect("products.aspx?action=" + redirect + "&productid=" + productid + "&error=Invalid Column");
+                        }
+                    }
+                    else
+                    {
+                        Response.Redirect("products.aspx?action=" + redirect + "&productid=" + productid + "&error=Invalid Product ID");
+                    }
+                    break;
+                case "export":
+                    Sessions.checkPermission("Product Gallery_Export", "products.aspx?error=You do not have permission to export products");
+                    
+                    DoExport("allproducts");
+
+                    break;
+
+                case "delete":
+                    Sessions.checkPermission("Product Gallery_Delete", "products.aspx?error=You do not have permission to delete products");
+                    if (productid > 0)
+                    {
+                        _product.deleteProduct(productid);
+                    }
+
+                    Response.Redirect("products.aspx?msg=Product has been DELETED");
+
+                    break;
+
+                default:
+                    DefaultView(0);
+                    mvProducts.SetActiveView(overview);
+                    break;
+            }
+        }
+    }
+
+    void gvProducts_PageIndexChanging(object sender, GridViewPageEventArgs e)
+    {
+        try
+        {
+            categoryid = Convert.ToInt32(ddlCategories.SelectedValue);
+        }
+        catch { }
+        DefaultView(e.NewPageIndex);
+    }
+
+    private void SetPermissions()
+    {
+        AddProductLink.Visible = Sessions.getUserPermission("Product Gallery_Add");
+        AddProductCategoryLink.Visible = Sessions.getUserPermission("Product Categories_Add");
+        ExportProductList.Visible = Sessions.getUserPermission("Product Gallery_Export");
+    }
+
+    void EditProductButton_Click(object sender, ImageClickEventArgs e)
+    {
+        Utility.FixForm(form);
+
+        string[] currImage = imgCurrentImg.ImageUrl.Split('/');
+        string productimage = currImage[currImage.Length - 1];
+
+        string destDir = Server.MapPath("/images/products");
+        string destDir2 = Server.MapPath("/images/products/thumbs");
+        string filenamePrefix = txtName.Text.Replace(" ", "").Replace("''", "").Replace("&", "").Replace("-", "");
+        filenamePrefix = Utility.CleanItem(filenamePrefix);
+        string destPath = "";
+        string destPath2 = "";
+        bool error = false;
+        string ext = "";
+        if (fulImage.PostedFile.ContentLength > 0)
+        {
+            productimage = Path.GetFileName(fulImage.PostedFile.FileName);
+            //productimage = filenamePrefix + "_" + Utility.CleanItem(productimage);
+            productimage = filenamePrefix + "_" + productimage.Replace("#", "").Replace(" ", "").Replace("-", "").Replace(",", "").Replace("'", "").Replace("(", "").Replace(")", "").Replace("''", "").Replace("&", "");
+            
+            ext = Path.GetExtension(fulImage.PostedFile.FileName);
+            ext = ext.ToUpper();
+
+            if (ext != ".GIF" && ext != ".JPG" && ext != ".PNG" && ext != ".BMP" && ext != ".WMF" && ext != ".TIF")
+            {
+                lblWrongType.Visible = true;
+                error = true;
+            }
+            else
+            {
+                lblWrongType.Visible = false;
+                error = false;
+            }
+
+            destPath = Path.Combine(destDir, productimage);
+            destPath2 = Path.Combine(destDir2, productimage);
+
+            fulImage.PostedFile.SaveAs(destPath);
+            System.Drawing.Image checkImg = System.Drawing.Image.FromFile(destPath);
+            int cwidth = 0;
+            int cheight = 0;
+            int imgwidth = checkImg.Width;
+            checkImg.Dispose();
+            if (imgwidth > maxImageWidth)
+            {
+                Utility.ResizeImage(destPath, destPath, maxImageWidth, 6024, false);
+            }
+
+            //if (imgwidth > 640)
+            //{
+            //    cwidth = 640;
+            //    cheight = 480;
+            //}
+            //else if (imgwidth > 320)
+            //{
+            //    cwidth = 320;
+            //    cheight = 240;
+            //}
+            //else if (imgwidth > 160)
+            //{
+            //    cwidth = 160;
+            //    cheight = 120;
+            //}
+            //else if (imgwidth > 130)
+            //{
+            //    cwidth = 130;
+            //    cheight = 97;
+            //}
+            //else
+            //{
+            //    cwidth = 130;
+            //    cheight = 97;
+            //    Utility.ResizeImage(destPath, destPath, 130, 6024, false);
+            //}
+            //cwidth = 505;
+            //cheight = 505;
+            //System.Drawing.Image newImage = Crop(destPath, cwidth, cheight, 0, 0);
+            //newImage.Save(destPath2);
+            Utility.ResizeImage(destPath, destPath2, 101, 3000, false);
+        }
+        destDir = Server.MapPath("/productinformation/msds/");
+        string[] cmsds = hlCurrDocument.NavigateUrl.Split('/');
+        string msds = cmsds[cmsds.Length - 1];
+        //msds = "";
+        if (fileMSDS.PostedFile.ContentLength > 0)
+        {
+            msds = filenamePrefix + "_" + Path.GetFileName(fileMSDS.PostedFile.FileName);
+            destPath = Path.Combine(destDir, msds);
+
+            ext = Path.GetExtension(fileMSDS.PostedFile.FileName);
+            ext = ext.ToUpper();
+
+            if (ext != ".PDF" && ext != ".DOC")
+            {
+                lblWrongType2.Visible = true;
+                error = true;
+            }
+            else
+            {
+                lblWrongType2.Visible = false;
+                error = false;
+            }
+
+            fileMSDS.PostedFile.SaveAs(destPath);
+        }
+
+        destDir = Server.MapPath("/productinformation/spec/");
+        string[] cspec = hlCurrSpec.NavigateUrl.Split('/');
+        string spec = cspec[cspec.Length - 1];
+        //msds = "";
+        if (fileSpec.PostedFile.ContentLength > 0)
+        {
+            spec = filenamePrefix + "_" + Path.GetFileName(fileSpec.PostedFile.FileName);
+            destPath = Path.Combine(destDir, spec);
+
+            ext = Path.GetExtension(fileSpec.PostedFile.FileName);
+            ext = ext.ToUpper();
+
+            if (ext != ".PDF" && ext != ".DOC")
+            {
+                lblWrongType3.Visible = true;
+                error = true;
+            }
+            else
+            {
+                lblWrongType3.Visible = false;
+                error = false;
+            }
+
+            fileSpec.PostedFile.SaveAs(destPath);
+        }
+
+        
+
+        if (!error)
+        {
+            _product.ClearCategoriesFromProduct(productid);
+
+            foreach (ListItem li in lstCategories.Items)
+            {
+                if (li.Selected)
+                {
+                    _product.AddCategoryForProduct(productid, Convert.ToInt32(li.Value));
+                }
+            }
+
+            _product.ClearPricesForProduct(productid);
+            if (txtPrice1.Text != "")
+            {
+                if (ddlPriceType1.SelectedValue != "0")
+                {
+                    _product.AddPriceForProduct(productid, Convert.ToInt32(ddlPriceType1.SelectedValue), txtPrice1.Text, rblPrice1IsPrimary.Checked);
+                    lblMissingType1.Visible = false;
+                }
+                else
+                {
+                    lblMissingType1.Visible = true;
+                    error = true;
+                }
+            }
+
+            if (txtPrice2.Text != "")
+            {
+                if (ddlPriceType2.SelectedValue != "0")
+                {
+                    _product.AddPriceForProduct(productid, Convert.ToInt32(ddlPriceType2.SelectedValue),
+                        txtPrice2.Text, rblPrice2IsPrimary.Checked);
+                    lblMissingType2.Visible = false;
+                }
+                else
+                {
+                    lblMissingType2.Visible = true;
+                    error = true;
+                }
+            }
+
+            if (txtPrice3.Text != "")
+            {
+                if (ddlPriceType3.SelectedValue != "0")
+                {
+                    _product.AddPriceForProduct(productid, Convert.ToInt32(ddlPriceType3.SelectedValue),
+                        txtPrice3.Text, rblPrice3IsPrimary.Checked);
+                    lblMissingType3.Visible = false;
+                }
+                else
+                {
+                    lblMissingType3.Visible = true;
+                    error = true;
+                }
+            }
+
+            if (!error)
+            {
+                _product.editProduct(productid, txtName.Text, txtSummary.Text, fckDetails.Value.Replace("'", "''"),
+                    productimage, 0.0, 0, Convert.ToInt32(chkFeature.Checked),
+                    Convert.ToInt32(chkViewDesc.Checked), Convert.ToInt32(chkActive.Checked), 0, msds, txtShortTitle.Text,
+                    txtManufaturer.Text, txtACode.Text, txtTags.Text, txtSizes.Text, fckFeatures.Value.Replace("'", "''"), spec);
+                
+                Response.Redirect("products.aspx?msg=Product has been UPDATED");
+            }
+        }
+
+    }
+
+    void ddlCategories_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        categoryid = Convert.ToInt32(ddlCategories.SelectedValue);
+
+        DefaultView(0);
+    }
+
+    void AddProductButton_Click(object sender, ImageClickEventArgs e)
+    {
+        Utility.FixForm(form);
+
+        string productimage = "noProductImage.jpg";
+        string destDir = Server.MapPath("/images/products");
+        string destDir2 = Server.MapPath("/images/products/thumbs");
+        string filenamePrefix = txtName.Text.Replace(" ", "").Replace("''", "").Replace("&", "").Replace("-", "");
+        filenamePrefix = Utility.CleanItem(filenamePrefix);
+        string destPath = "";
+        string destPath2 = "";
+        string ext = "";
+        bool error = false;
+
+        if (fulImage.PostedFile.ContentLength > 0)
+        {
+            productimage = Path.GetFileName(fulImage.PostedFile.FileName);
+            productimage = filenamePrefix+ "_" + productimage.Replace("#", "").Replace(" ", "").Replace("-", "").Replace(",", "").Replace("'", "").Replace("(", "").Replace(")", "").Replace("''", "").Replace("&", "");
+            
+            ext = Path.GetExtension(fulImage.PostedFile.FileName);
+            ext = ext.ToUpper();
+
+            if (ext != ".GIF" && ext != ".JPG" && ext != ".PNG" && ext != ".BMP" && ext != ".WMF" && ext != ".TIF")
+            {
+                lblWrongType.Visible = true;
+                error = true;
+            }
+            else
+            {
+                lblWrongType.Visible = false;
+                error = false;
+            }
+            if (!error)
+            {
+                destPath = Path.Combine(destDir, productimage);
+                destPath2 = Path.Combine(destDir2, productimage);
+
+                fulImage.PostedFile.SaveAs(destPath);
+                System.Drawing.Image checkImg = System.Drawing.Image.FromFile(destPath);
+                int cwidth = 0;
+                int cheight = 0;
+                int imgwidth = checkImg.Width;
+                checkImg.Dispose();
+                if (imgwidth > maxImageWidth)
+                {
+                    Utility.ResizeImage(destPath, destPath, maxImageWidth, 6024, false);
+                }
+
+                //if (imgwidth > 640)
+                //{
+                //    cwidth = 640;
+                //    cheight = 480;
+                //}
+                //else if (imgwidth > 320)
+                //{
+                //    cwidth = 320;
+                //    cheight = 240;
+                //}
+                //else if (imgwidth > 160)
+                //{
+                //    cwidth = 160;
+                //    cheight = 120;
+                //}
+                //else if (imgwidth > 130)
+                //{
+                //    cwidth = 130;
+                //    cheight = 97;
+                //}
+                //else
+                //{
+                //    cwidth = 130;
+                //    cheight = 97;
+                //    Utility.ResizeImage(destPath, destPath, 130, 6024, false);
+                //}
+                //cwidth = 505;
+                //cheight = 505;
+                //System.Drawing.Image newImage = Crop(destPath, cwidth, cheight, 0, 0);
+                //newImage.Save(destPath2);
+                Utility.ResizeImage(destPath, destPath2, 101, 3000, false);
+            }
+        }
+
+        destDir = Server.MapPath("/productinformation/msds/");
+        string msds = "";
+        if (fileMSDS.PostedFile.ContentLength > 0)
+        {
+            msds = filenamePrefix + "_" + Path.GetFileName(fileMSDS.PostedFile.FileName);
+            destPath = Path.Combine(destDir, msds);
+
+            ext = Path.GetExtension(fileMSDS.PostedFile.FileName);
+            ext = ext.ToUpper();
+
+            if (ext != ".PDF" && ext != ".DOC")
+            {
+                lblWrongType2.Visible = true;
+                error = true;
+            }
+            else
+            {
+                lblWrongType2.Visible = false;
+                error = false;
+            }
+
+            if (!error)
+            {
+                fileMSDS.PostedFile.SaveAs(destPath);
+            }
+        }
+
+        destDir = Server.MapPath("/productinformation/spec/");
+        string spec = "";
+        //msds = "";
+        if (fileSpec.PostedFile.ContentLength > 0)
+        {
+            spec = filenamePrefix + "_" + Path.GetFileName(fileSpec.PostedFile.FileName);
+            destPath = Path.Combine(destDir, spec);
+
+            ext = Path.GetExtension(fileSpec.PostedFile.FileName);
+            ext = ext.ToUpper();
+
+            if (ext != ".PDF" && ext != ".DOC")
+            {
+                lblWrongType3.Visible = true;
+                error = true;
+            }
+            else
+            {
+                lblWrongType3.Visible = false;
+                error = false;
+            }
+
+            fileSpec.PostedFile.SaveAs(destPath);
+        }
+
+        if (!error)
+        {
+            _product.addProduct(txtName.Text, txtSummary.Text, fckDetails.Value.Replace("'", "''"),
+                productimage, 0.0, 0, Convert.ToInt32(chkFeature.Checked),
+                Convert.ToInt32(chkViewDesc.Checked), Convert.ToInt32(chkActive.Checked), 0, msds, 
+                txtShortTitle.Text, txtManufaturer.Text, txtACode.Text, txtSizes.Text, txtTags.Text, 
+                fckFeatures.Value.Replace("'", "''"), spec);
+
+            productid = _product.MaxID();
+
+            foreach (ListItem li in lstCategories.Items)
+            {
+                if (li.Selected)
+                {
+                    _product.AddCategoryForProduct(productid, Convert.ToInt32(li.Value));
+                }
+            }
+
+            if (txtPrice1.Text != "")
+            {
+                if (ddlPriceType1.SelectedValue != "0")
+                {
+                    _product.AddPriceForProduct(productid, Convert.ToInt32(ddlPriceType1.SelectedValue), txtPrice1.Text, rblPrice1IsPrimary.Checked);
+                    lblMissingType1.Visible = false;
+                }
+                else
+                {
+                    lblMissingType1.Visible = true;
+                    error = true;
+                }
+            }
+
+            if (txtPrice2.Text != "")
+            {
+                if (ddlPriceType2.SelectedValue != "0")
+                {
+                    _product.AddPriceForProduct(productid, Convert.ToInt32(ddlPriceType2.SelectedValue),
+                        txtPrice2.Text, rblPrice2IsPrimary.Checked);
+                    lblMissingType2.Visible = false;
+                }
+                else
+                {
+                    lblMissingType2.Visible = true;
+                    error = true;
+                }
+            }
+
+            if (txtPrice3.Text != "")
+            {
+                if (ddlPriceType3.SelectedValue != "0")
+                {
+                    _product.AddPriceForProduct(productid, Convert.ToInt32(ddlPriceType3.SelectedValue),
+                        txtPrice3.Text, rblPrice3IsPrimary.Checked);
+                    lblMissingType3.Visible = false;
+                }
+                else
+                {
+                    lblMissingType3.Visible = true;
+                    error = true;
+                }
+            }
+
+            if (!error)
+            {
+                Response.Redirect("products.aspx?msg=Product has been ADDED");
+            }
+            
+        }
+    }
+
+    private void DefaultView(int p)
+    {
+        Sessions.setSessionValue("p", p.ToString());
+
+        if (Request.QueryString["sort"] != null)
+        {
+            sort = Request.QueryString["sort"];
+        }
+
+        if (Request.QueryString["dir"] != null)
+        {
+            try
+            {
+                dir = Convert.ToInt32(Request.QueryString["dir"]);
+            }
+            catch
+            {
+                dir = 0;
+            }
+        }
+
+        if (dir == 1)
+        {
+            orderdir = "desc";
+            dir2 = 0;
+        }
+        else
+        {
+            orderdir = "asc";
+            dir2 = 1;
+        }
+
+        switch (sort)
+        {
+            case "i":
+                orderby = " p.productid ";
+                arrowi = "arrow" + orderdir;
+                break;
+            case "n":
+            default:
+                orderby = " p.productname ";
+                arrown = "arrow" + orderdir;
+                break;
+            case "c":
+                orderby = " c.title ";
+                arrowc = "arrow" + orderdir;
+                break;
+            case "p":
+                orderby = " p.price ";
+                arrowp = "arrow" + orderdir;
+                break;
+            case "a":
+                orderby = " p.purchase ";
+                arrowa = "arrow" + orderdir;
+                break;
+            case "f":
+                orderby = " p.feature ";
+                arrowf = "arrow" + orderdir;
+                break;
+            case "ac":
+                orderby = " p.acode ";
+                arrowac = "arrow" + orderdir;
+                break;
+            case "fe":
+                orderby = " p.feature ";
+                arrowfe = "arrow" + orderdir;
+                break;
+        }
+
+        gvProducts.DataSource = _product.getAllProducts(categoryid, "", orderby, orderdir);
+        gvProducts.PageIndex = p;
+        gvProducts.DataBind();
+
+        foreach (GridViewRow gvr in gvProducts.Rows)
+        {
+            gvr.Controls[0].FindControl("edit").Visible = Sessions.getUserPermission("Product Gallery_Edit");
+            gvr.Controls[0].FindControl("delete").Visible = Sessions.getUserPermission("Product Gallery_Delete");
+        }
+
+        if (gvProducts.Rows.Count == 0)
+        {
+            lblEmpty.Visible = true;
+        }
+        else
+        {
+            lblEmpty.Visible = false;
+        }
+
+        if (!Page.IsPostBack)
+        {
+            CategoryList(ref ddlCategories, 0, 0, "");
+            try
+            {
+                ddlCategories.Items.FindByValue(categoryid.ToString()).Selected = true;
+            }
+            catch { }
+        }
+    }
+
+    protected void CategoryList(ref ListBox ddlCate, int parentid, int level, string rank)
+    {
+        if (!Page.IsPostBack)
+        {
+            string space = "";
+            for (int i = 0; i < level; i++)
+            {
+                space += "";
+            }
+            DataSet allCategories = _category.getAllCategoriesByType(parentid, _category.getCategoryTypeByName("Product"));
+            foreach (DataRow cat in allCategories.Tables[0].Rows)
+            {
+                string position = "";
+                if (level == 0) { position = cat["rank"].ToString(); }
+                else { position = rank + "." + cat["rank"].ToString(); }
+                ddlCate.Items.Add(new ListItem(position + ". " + cat["title"].ToString(), cat["categoryid"].ToString()));
+                CategoryList(ref ddlCate, Convert.ToInt32(cat["categoryid"]), level + 1, position);
+            }
+        }
+    }
+    protected void CategoryList(ref DropDownList ddlCate, int parentid, int level, string rank)
+    {
+        if (!Page.IsPostBack)
+        {
+            string space = "";
+            for (int i = 0; i < level; i++)
+            {
+                space += "";
+            }
+            DataSet allCategories = _category.getAllCategoriesByType(parentid, _category.getCategoryTypeByName("Product"));
+            foreach (DataRow cat in allCategories.Tables[0].Rows)
+            {
+                string position = "";
+                if (level == 0) { position = cat["rank"].ToString(); }
+                else { position = rank + "." + cat["rank"].ToString(); }
+                ddlCate.Items.Add(new ListItem(position + ". " + cat["title"].ToString(), cat["categoryid"].ToString()));
+                CategoryList(ref ddlCate, Convert.ToInt32(cat["categoryid"]), level + 1, position);
+            }
+        }
+    }
+    public string PrintLevelString(int categoryid, string levelString)
+    {
+        int parentid = _category.ParentID(categoryid);
+        if (parentid == 0)
+        {
+            string[] lvl = levelString.Split('.');
+
+            levelString = _category.Rank(categoryid).ToString() + "." + levelString;
+            //for (int i = 1; i < lvl.Length; i++)
+            //{
+            //    levelString = "&nbsp;&nbsp;&nbsp;&nbsp;" + levelString;
+            //}
+
+            return levelString;
+        }
+        else
+        {
+            levelString = _category.Rank(categoryid) + "." + levelString;
+            levelString = PrintLevelString(parentid, levelString);
+            return levelString;
+        }
+    }
+    public System.Drawing.Image Crop(string img, int width, int height, int x, int y)
+    {
+        //try
+        //{
+        System.Drawing.Image image = System.Drawing.Image.FromFile(img);
+        Bitmap bmp = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+        bmp.SetResolution(80, 60);
+
+        Graphics gfx = Graphics.FromImage(bmp);
+        gfx.SmoothingMode = SmoothingMode.AntiAlias;
+        gfx.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        gfx.PixelOffsetMode = PixelOffsetMode.HighQuality;
+        gfx.DrawImage(image, new Rectangle(0, 0, width, height), x, y, width, height, GraphicsUnit.Pixel);
+
+
+        //image.Save(newimg);
+        image.Dispose();
+        //bmp.Dispose();
+        gfx.Dispose();
+
+        return bmp;
+
+
+
+
+
+
+        //}
+        //catch (Exception ex)
+        //{
+        //    Response.Write(ex.Message);
+
+        //}
+    }
+    protected void DoExport(string filename)
+    {
+        Response.Clear();
+
+        Response.Buffer = false;
+
+        Response.AddHeader("content-disposition", "attachment;filename=" + filename + "_" + DateTime.Now.ToString().Replace("/", "").Replace(" ", "").Replace(":", "") + ".csv");
+
+        Response.Charset = "";
+
+        Response.ContentType = "application/text";
+
+        DataSet ds = _product.getAllProducts();
+
+        StringBuilder sb = new StringBuilder();
+        for (int c = 0; c < ds.Tables[0].Columns.Count; c++)
+        {
+            sb.Append(ds.Tables[0].Columns[c].ColumnName + ",");
+        }
+
+        sb.Append("\r\n");
+
+        for (int r = 0; r < ds.Tables[0].Rows.Count; r++)
+        {
+            for (int col = 0; col < ds.Tables[0].Columns.Count; col++)
+            {
+                sb.Append(ds.Tables[0].Rows[r][col].ToString().Replace(",", "").Replace("\r\n", "").Replace("\n", "") + ",");
+            }
+            sb.Append("\r\n");
+        }
+
+        Response.Write(sb.ToString());
+
+        Response.Flush();
+
+        Response.End(); 
+    }
+    public override void VerifyRenderingInServerForm(Control control)
+    {
+
+    }
+    protected string SetImage(string productname, string productimage)
+    {
+        if (productimage != "")
+        {
+            return "<img src=\"/images/products/thumbs/" + productimage + "\" alt=\"" + productname + "\" />";
+        }
+        return "";
+    }
+    protected string SetDocument(string doc, string type)
+    {
+        if (doc != "")
+        {
+            return "<a href=\"/productinformation/"+type+"/" + doc + "\" target=\"_blank\">View</a>";
+        }
+        return "";
+    }
+
+    public string GetCategories()
+    {
+        DataSet allCat = _product.GetAllCategoriesForProduct(productid);
+
+        string categoryList = "";
+        foreach (DataRow cat in allCat.Tables[0].Rows)
+        {
+            categoryList += "&nbsp;" + PrintLevelString(Convert.ToInt32(cat["categoryid"]), "") + " " + _category.getCategoryNameByID(Convert.ToInt32(cat["categoryid"])) + "<br />";
+        }
+
+        return categoryList;
+    }
+
+    public void PricingBoxes()
+    {
+        if (!Page.IsPostBack)
+        {
+            ddlPriceType1.DataSource = _product.GetAllPriceTypes();
+            ddlPriceType2.DataSource = _product.GetAllPriceTypes();
+            ddlPriceType3.DataSource = _product.GetAllPriceTypes();
+
+            ddlPriceType1.DataBind();
+            ddlPriceType2.DataBind();
+            ddlPriceType3.DataBind();
+        }
+    }
+
+    public string GetPrices(int productid)
+    {
+        DataSet allPrices = _product.GetAllPrices(productid);
+        string prices = "";
+        foreach (DataRow price in allPrices.Tables[0].Rows)
+        {
+            prices += String.Format("{0:C}", price["price"]) + " per " + _product.GetPriceType(Convert.ToInt32(price["pricetypeid"])) + "<br />";
+        }
+        return prices;
+    }
+}

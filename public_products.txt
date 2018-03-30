@@ -1,0 +1,134 @@
+<%@ Control Language="C#" AutoEventWireup="true" CodeFile="Products.ascx.cs" Inherits="App_UserControls_products" %>
+<%@ Register Src="~/App_UserControls/ProductBreadcrumbs.ascx" TagName="ProductBreadCrumb" TagPrefix="mws" %>
+
+
+<asp:MultiView ID="mvProducts" runat="server">
+    <asp:View ID="categoryView" runat="server">
+        <div id="productCategoryContent">
+            <div class="productCategory">
+                <asp:HyperLink ID="hlMachinesButton" runat="server" NavigateUrl="/products/products.aspx?action=viewProducts&categoryid=">
+                    <asp:ImageMap ID="imapMachinesButton" runat="server" ImageUrl="/images/btnMachines.png"></asp:ImageMap>
+                </asp:HyperLink>        
+            </div>
+            <div class="productCategory">
+                <asp:HyperLink ID="hlChemicalButton" runat="server" NavigateUrl="/products/products.aspx?action=viewProducts&categoryid=">
+                    <asp:ImageMap ID="imapChemicalButton" runat="server" ImageUrl="/images/btnChemicalSolutions.png"></asp:ImageMap>
+                </asp:HyperLink>        
+            </div>
+            <div class="productCategory">
+                <asp:HyperLink ID="hlAccessoriesButton" runat="server" NavigateUrl="/products/products.aspx?action=viewProducts&categoryid=">
+                    <asp:ImageMap ID="imapAccessoriesButton" runat="server" ImageUrl="/images/btnAccessories.png"></asp:ImageMap>
+                </asp:HyperLink>        
+            </div>
+            <div class="productCategory">
+                <asp:HyperLink ID="hlTrainingButton" runat="server" NavigateUrl="/products/products.aspx?action=viewProducts&categoryid=">
+                    <asp:ImageMap ID="imapTrainingButton" runat="server" ImageUrl="/images/btnTraining.png"></asp:ImageMap>
+                </asp:HyperLink>        
+            </div>
+        </div>
+    </asp:View>
+    
+    <asp:View ID="productView" runat="server">
+        <div style="margin-left:0px;padding-left:0px;margin-bottom:10px;width:637px;" class="form">
+            <div class="productPage" style="margin-top:5px;">
+                Search:
+            </div>
+            <div class="productPage">
+                <asp:TextBox ID="txtSearch" Width="300px" runat="Server"></asp:TextBox>
+            </div>
+            <div class="productPage">
+                <asp:DropDownList ID="ddlSearchIn" runat="server">
+                    <asp:ListItem Value="0">in current category</asp:ListItem>
+                    <asp:ListItem Value="1">in all products</asp:ListItem>
+                </asp:DropDownList>
+            </div>
+            <div class="productPage">
+                <asp:Button ID="btnSearch" class="button" runat="server" Text="Go" />
+            </div><br />
+            <div>
+                <span style="font:bold 9px Arial;">(Searches ATSCO Code, Name, Manufacturer, Sizes, Features, Description, and Tags)</span>
+            </div>
+        </div>
+        <mws:ProductBreadCrumb ID="breadcrumb" runat="server" /><br />
+        <div>
+            <asp:Literal ID="litSearchResultCount" Visible="false" runat="server"></asp:Literal>
+            <asp:DataList ID="dlProducts" Width="638px"  CellSpacing="0" HorizontalAlign="Center" CellPadding="10" runat="server" RepeatColumns="3" RepeatDirection="Horizontal">
+                <ItemStyle Width="202px" Height="225px" CssClass="product" />
+                <ItemTemplate>
+                    <asp:HiddenField ID="hfImageThumb" runat="server" Value='<%# Eval("productimage") %>' />
+                    <asp:HiddenField ID="hfProductName" runat="server" Value='<%# Eval("productname") %>' />
+                    <table cellspacing="0" align="center">
+                        <tr height="160px" style="height:160px;">
+                            <td valign="middle" height="160px" style="text-align:center;">
+                                <a href='?action=details&productid=<%# Eval("productid") %>' style="font-weight:bold;text-decoration:none;">
+                                    <asp:Image ID="imgProductImage" runat="server" />
+                                </a>
+                            </td>
+                        </tr>
+                        <tr style="height:50px;">
+                            <td valign="top" style="text-align:center;">
+                                <div style="margin-bottom:7px;">
+                                    <a href='?action=details&productid=<%# Eval("productid") %>' style="font-weight:bold;"> 
+                                        <%# measureString(Eval("ProductName").ToString(), 368, true, 12) %>    
+                                    </a>
+                                </div>
+                                <%# GetDisplayPrice(Convert.ToInt32(Eval("productid"))) %>
+                            </td>
+                        </tr>
+                    </table>
+                </ItemTemplate>
+            </asp:DataList>
+            
+            <asp:Label ID="lblEmpty2" runat="server" Visible="false" Text="There are no products in this section"></asp:Label>
+            <div style="width:637px;">
+                <div id="productPaging">
+                    <div class="productPage"><a href="#" onclick="javascript:scroll(0,0);">Back To Top</a></div>
+                    <div style="float:left;width:15px;">&nbsp;</div>
+                    <div class="productPage">Page: </div>
+                    <asp:Literal ID="litProductPaging" runat="server"></asp:Literal>
+                    <div class="break"></div>
+                </div>
+                <div id="productsPerPage">
+                    <div class="productPage">Items Per Page: </div>
+                    <asp:Literal ID="litItemsPerPage" runat="server"></asp:Literal>
+                    <div class="break"></div>
+                </div>
+                <div class="break"></div>
+            </div>
+        </div>
+    </asp:View>
+    <asp:View ID="vwDetails" runat="server">
+        <div>
+            <span style="font:bold 14px Arial;color:blue;"><asp:Literal ID="litProductName" runat="server"></asp:Literal></span><br /><br />
+            <asp:Panel ID="pnlDetails" runat="server">
+                <div style="float:left;text-align:center;margin-right:7px;">
+                    <asp:HyperLink ID="hlFullImage" runat="server" Target="_blank">
+                        <asp:Image ID="imgProduct" runat="server"/>
+                    </asp:HyperLink><br />
+                    <div style="font:bold 10px Arial;">Click for Full Image</div>
+                </div>
+                <div style="float:left;">
+                    <asp:Literal ID="litProductInfo" runat="server"></asp:Literal>
+                </div>
+                <div class="break"></div>
+            </asp:Panel>
+            <asp:PlaceHolder ID="phProductInformation" runat="server">
+                <p><br />
+                    <b>Additional Information: </b><br />
+                    <asp:Literal ID="litProductDetails" runat="server"></asp:Literal>
+                </p>
+            </asp:PlaceHolder>
+            <asp:PlaceHolder ID="phProductFeatures" runat="server">
+                <p>
+                    <b>Features: </b><br />
+                    <asp:Literal ID="litProductFeatures" runat="server"></asp:Literal><br />
+                </p>
+            </asp:PlaceHolder>
+            
+        </div>
+        <a href="#top">Back to Top</a>&nbsp;&nbsp;|&nbsp;&nbsp;<asp:HyperLink ID="hlListingLink" runat="server" NavigateUrl="/products/products.aspx">Back to Product Listing</asp:HyperLink>
+        <asp:Literal ID="litOtherLinks" runat="server"></asp:Literal>
+        &nbsp;&nbsp;|&nbsp;&nbsp;
+        <a href="/productinformation/PrintProduct.aspx?productid=<%=productid %>" target="_blank">Print</a>
+    </asp:View>
+</asp:MultiView>

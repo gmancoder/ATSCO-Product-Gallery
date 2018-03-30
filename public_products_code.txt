@@ -1,0 +1,782 @@
+using System;
+using System.Data;
+using System.Configuration;
+using System.Collections;
+using System.Web;
+using System.Web.Security;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Web.UI.WebControls.WebParts;
+using System.Web.UI.HtmlControls;
+using System.Text;
+using System.Drawing;
+
+public partial class App_UserControls_products : System.Web.UI.UserControl
+{
+    protected Products _product = new Products();
+    protected Categories _category = new Categories();
+    protected Pages _page = new Pages();
+
+    public int productid = 0;
+    public int categoryid = 0;
+    Literal litPageTitle = new Literal();
+    Literal litContent = new Literal();
+    public int p = 0;
+    public int rpp = 0;
+
+    private bool Pages = false;
+
+    public int maxHeight = 160;
+    public int currWidth = 0;
+    public int currHeight = 0;
+    public int width = 0;
+    public int height = 0;
+    public int rppStart = 12;
+    protected void Page_Load(object sender, EventArgs e)
+    {
+        btnSearch.Click += new EventHandler(btnSearch_Click);
+
+        string searchTerm = "";
+        if (Request.QueryString["categoryid"] != null)
+        {
+            categoryid = Convert.ToInt32(Request.QueryString["categoryid"]);
+        }
+        if (Request.QueryString["search"] != null)
+        {
+            searchTerm = Request.QueryString["search"];
+        }
+
+        litPageTitle = (Literal)Page.Master.FindControl("litPageTitle");
+        litContent = (Literal)Page.Master.FindControl("litContent");
+
+        try
+        {
+            productid = Convert.ToInt32(Request.QueryString["productid"]);
+        }
+        catch { }
+
+        rpp = rppStart;
+        
+        if(Request.QueryString["rpp"] != null)
+        {
+            rpp = Convert.ToInt32(Request.QueryString["rpp"]);
+        }
+        //Response.Write(rpp);
+        string action = "";
+
+        if (Request.QueryString["action"] != null)
+        {
+            action = Request.QueryString["action"];
+        }
+        if(!Page.IsPostBack) 
+        {
+            switch (action)
+            {
+                case "viewProducts":
+
+                    if (Request.QueryString["p"] != null)
+                    {
+                        CurrentPage = Convert.ToInt32(Request.QueryString["p"]) - 1;
+                    }
+
+                    Page.Title += GetCategoryString(categoryid, "");
+                    litPageTitle.Text += GetCategoryString(categoryid, "");
+
+                    PagedDataSource objPds = new PagedDataSource();
+
+                    DataSet ds = _product.getAllProducts(categoryid, searchTerm, "productname", "asc");
+
+                    int[] productIDs = new int[ds.Tables[0].Rows.Count];
+                    int pids = 0;
+                    for(int d = 0; d < ds.Tables[0].Rows.Count; d ++) 
+                    {
+                        DataRow prod = ds.Tables[0].Rows[d];
+                    
+                        int prodid = Convert.ToInt32(prod["productid"]);
+
+                        bool found = false;
+                        int i = 0;
+                        while(i < pids && !found)
+                        {
+                            if (productIDs[i] == prodid)
+                            {
+                                found = true;
+                            }
+                            i++;
+                        }
+
+                        if (!found)
+                        {
+                            productIDs[pids] = prodid;
+                            pids++;
+                        }
+                        else
+                        {
+                            ds.Tables[0].Rows.Remove(prod);
+                            d--;
+                        }
+                    }
+
+                    objPds.DataSource = ds.Tables[0].DefaultView;
+
+                    objPds.AllowPaging = true;
+                    objPds.PageSize = rpp;
+                    
+                    if (searchTerm != "")
+                    {
+                        litSearchResultCount.Text = "<div id=\"productSearchResultText\">Your search for '" + searchTerm + "' returned " + ds.Tables[0].Rows.Count + " result(s)</div>";
+                        litSearchResultCount.Visible = true;
+                    }
+
+                    objPds.CurrentPageIndex = CurrentPage;
+
+                    dlProducts.DataSource = objPds;
+                    dlProducts.DataBind();
+
+                    foreach (DataListItem dli in dlProducts.Items)
+                    {
+                        HiddenField hfImageThumb = (HiddenField)dli.FindControl("hfImageThumb");
+                        HiddenField hfProductName = (HiddenField)dli.FindControl("hfProductName");
+                        System.Web.UI.WebControls.Image imgProductImage = (System.Web.UI.WebControls.Image)dli.FindControl("imgProductImage");
+
+                        System.Drawing.Image newImage = System.Drawing.Image.FromFile(Server.MapPath("/images/products/thumbs/" + hfImageThumb.Value));
+
+                        currWidth = newImage.Width;
+                        currHeight = newImage.Height;
+                        newImage.Dispose();
+
+                        if (currHeight > maxHeight)
+                        {
+                            height = maxHeight;
+                            width = (currWidth * maxHeight) / currHeight;
+                        }
+                        else
+                        {
+                            height = currHeight;
+                            width = currWidth;
+                        }
+
+                        imgProductImage.ImageUrl = "/images/products/thumbs/" + hfImageThumb.Value;
+                        imgProductImage.Width = width;
+                        imgProductImage.Height = height;
+                        imgProductImage.AlternateText = hfProductName.Value;
+                    }
+
+                    string productPages = "";
+                    
+                    for (int p = 1; p <= objPds.PageCount; p++)
+                    {
+                        if (CurrentPage + 1 == p)
+                        {
+                            productPages += "<div class=\"productPageOn\">" + p + "</div>";
+                        }
+                        else
+                        {
+                            productPages += "<div class=\"productPage\"><a href=\"" + Request.ServerVariables["URL"] + "?action=viewProducts&categoryid=" + categoryid + "&p=" + p + "&rpp=" + rpp + "&search=" + searchTerm + "\">" + p + "</a></div>";
+                        }
+                    }
+
+                    string productsPerPage = "";
+                    
+
+                    for (rppStart = 12; rppStart <= 100; rppStart *= 2)
+                    {
+                        if (rpp == rppStart)
+                        {
+                            productsPerPage += "<div class=\"productPageOn\">" + rppStart + "</div>";
+                        }
+                        else
+                        {
+                            productsPerPage += "<div class=\"productPage\"><a href=\"" + Request.ServerVariables["URL"] + "?action=viewProducts&categoryid=" + categoryid + "&rpp="+rppStart+"&search=" + searchTerm + "\">"+rppStart+"</a></div>";
+                        }
+                    }
+
+                    litItemsPerPage.Text = productsPerPage;
+                    litProductPaging.Text = productPages;
+
+                    if (dlProducts.Items.Count == 0)
+                    {
+                        lblEmpty2.Visible = true;
+                    }
+                    else
+                    {
+                        lblEmpty2.Visible = false;
+                    }
+
+                    mvProducts.SetActiveView(productView);
+                    break;
+                case "details":
+                    if (productid > 0)
+                    {
+                        int categoryToReturn = 0;
+                        if (Request.Cookies["category_selected"] != null)
+                        {
+                            HttpCookie cookie = Request.Cookies["category_selected"];
+                            try
+                            {
+                                categoryToReturn = Convert.ToInt32(cookie.Value);
+                            }
+                            catch { }
+                        }
+                        DataSet allProducts = _product.getProductByID(productid);
+                        if (allProducts.Tables[0].Rows.Count > 0)
+                        {
+                            litContent.Visible = false;
+                            litPageTitle.Text += " - Product Details";
+                            DataRow prod = allProducts.Tables[0].Rows[0];
+                            litProductName.Text = prod["productname"].ToString();
+                            imgProduct.ImageUrl = "/images/products/" + prod["productimage"];
+                            hlFullImage.NavigateUrl = "/images/products/" + prod["productimage"];
+                            System.Drawing.Image newImage = System.Drawing.Image.FromFile(Server.MapPath(imgProduct.ImageUrl));
+                            currWidth = newImage.Width;
+                            currHeight = newImage.Height;
+                            newImage.Dispose();
+                            if (currHeight > maxHeight)
+                            {
+                                height = maxHeight;
+                                width = (currWidth * maxHeight) / currHeight;
+                            }
+                            else
+                            {
+                                height = currHeight;
+                                width = currWidth;
+                            }
+
+                            imgProduct.Width = width;
+                            imgProduct.Height = height;
+
+                            imgProduct.AlternateText = prod["productname"].ToString();
+                            if (prod["productdetails"].ToString().Length > 0)
+                            {
+                                phProductInformation.Visible = true;
+                                litProductDetails.Text = prod["productdetails"].ToString();
+                            }
+                            else
+                            {
+                                phProductInformation.Visible = false;
+                            }
+
+                            if(prod["features"].ToString() != "")
+                            {
+                                litProductFeatures.Text = prod["features"].ToString();
+                                phProductFeatures.Visible = true;
+                            }
+                            else
+                            {
+                                phProductFeatures.Visible = false;
+                            }
+                            int infoLineCount = 0;
+                            StringBuilder sb = new StringBuilder();
+                            if (prod["manufacturer"].ToString() != "")
+                            {
+                                infoLineCount++;
+                                sb.Append("<b>Manufacturer: </b>" + prod["manufacturer"] + "<br><br>");
+                            }
+                            if (prod["acode"].ToString() != "")
+                            {
+                                infoLineCount++;
+                                sb.Append("<b>ATSCO Code: " + prod["acode"] + "</b><br><br>");
+                            }
+                            if (prod["sizes"].ToString() != "")
+                            {
+                                infoLineCount++;
+                                sb.Append("<b>Available Sizes: </b>" + prod["sizes"]+ "<br><br>");
+                            }
+                            DataSet allPrices = _product.GetAllPrices(productid);
+                            if (allPrices.Tables[0].Rows.Count > 0)
+                            {
+                                infoLineCount++;
+                                sb.Append("<div style=\"height:20px;\"><div style=\"float:left;width:50px;height:50px;\"><b>Prices: </b></div><div style=\"float:left;width:200px;height:50px;\">" + GetPrices(productid) + "</div><div class=\"break\"></div></div><br><br>");
+                            }
+                            if (prod["tags"].ToString() != "")
+                            {
+                                infoLineCount++;
+                                sb.Append("<b>Tags: </b>" + prod["tags"] + "<br><br>");
+                            }
+                            litProductInfo.Text = sb.ToString();
+                            sb = new StringBuilder();
+                            if (prod["msds"].ToString() != "")
+                            {
+                                sb.Append("&nbsp;&nbsp;|&nbsp;&nbsp;<a target=\"_blank\" href=\"/productinformation/msds/" + prod["msds"] + "\">View MSDS</a>");
+                            }
+                            if (prod["spec"].ToString() != "")
+                            {
+                                sb.Append("&nbsp;&nbsp;|&nbsp;&nbsp;<a target=\"_blank\" href=\"/productinformation/spec/" + prod["spec"] + "\">View Specifications</a>");
+                            }
+                            litOtherLinks.Text = sb.ToString();
+                            if (height < (infoLineCount * 30))
+                            {
+                                height = infoLineCount * 30;
+                            }
+                            pnlDetails.Attributes.Add("style", "margin-bottom:15px;height:" + height + "px;");
+
+                            if (categoryToReturn > 0)
+                            {
+                                hlListingLink.NavigateUrl += "?action=viewProducts&categoryid=" + categoryToReturn;
+                            }
+
+                            mvProducts.SetActiveView(vwDetails);
+                        }
+                    }
+                    break;
+                default:
+                    DefaultView();
+                    mvProducts.SetActiveView(categoryView);
+                    break;
+            }
+        }
+    }
+    protected string measureString(string strInput, int limit, bool bold, int fontSize)
+    {
+        System.Drawing.Image newImage = System.Drawing.Image.FromFile(Server.MapPath("/admin/images/category.jpg"));
+        Graphics newGraphic = Graphics.FromImage(newImage);
+
+        newGraphic.DrawRectangle(new Pen(Color.Black, 450), new Rectangle(0, 0, 450, 15));
+
+        SizeF size = new SizeF();
+
+        Font font = null;
+
+        if (bold)
+        {
+            font = new Font("Arial", fontSize, FontStyle.Bold);
+        }
+        else
+        {
+            font = new Font("Arial", fontSize);
+        }
+
+        size = newGraphic.MeasureString(strInput, font);
+
+        string newInput = strInput;
+        string[] inputArr = newInput.Split(' ');
+        int numWords = inputArr.Length;
+        while (size.Width > limit)
+        {
+            newInput = "";
+            numWords--;
+            for (int i = 0; i < numWords; i++)
+            {
+                newInput += inputArr[i] + " ";
+            }
+            newInput += "...";
+
+            size = newGraphic.MeasureString(newInput, font);
+        }
+
+        newImage.Dispose();
+        newGraphic.Dispose();
+
+        return newInput;
+    }
+    public string GetPrices(int productid)
+    {
+        DataSet allPrices = _product.GetAllPrices(productid);
+        string prices = "";
+        foreach (DataRow price in allPrices.Tables[0].Rows)
+        {
+            if (_product.GetPriceType(Convert.ToInt32(price["pricetypeid"])) != "Each")
+            {
+                prices += String.Format("{0:C}", price["price"]) + " per " + _product.GetPriceType(Convert.ToInt32(price["pricetypeid"])) + "<br />";
+            }
+            else
+            {
+                prices += String.Format("{0:C}", price["price"]) + " " + _product.GetPriceType(Convert.ToInt32(price["pricetypeid"])) + "<br />";
+            }
+        }
+        return prices;
+    }
+    void btnSearch_Click(object sender, EventArgs e)
+    {
+        if (txtSearch.Text != "")
+        {
+            switch(Convert.ToInt32(ddlSearchIn.SelectedValue))
+            {
+                case 0:
+                    Response.Redirect(Request.ServerVariables["URL"] + "?action=viewProducts&categoryid="+categoryid+"&search="+txtSearch.Text);
+                    break;
+                case 1:
+                    Response.Redirect(Request.ServerVariables["URL"] + "?action=viewProducts&categoryid=0&search=" + txtSearch.Text);
+                    break;
+            }
+            
+        }
+    }
+
+    public string ProcessHighlight(string item)
+    {
+        string searchterm = "";
+        if (Request.QueryString["search"] != null)
+        {
+            searchterm = Request.QueryString["search"];
+        }
+
+        try
+        {
+            return item.Replace(searchterm, "<span class='searchHighlight'>" + searchterm + "</span>").Replace(searchterm.ToLower(), "<span class='searchHighlight'>" + searchterm.ToLower() + "</span>").Replace(searchterm.ToUpper(), "<span class='searchHighlight'>" + searchterm.ToUpper() + "</span>").Replace(System.Threading.Thread.CurrentThread.CurrentCulture.TextInfo.ToTitleCase(searchterm), "<span class='searchHighlight'>" + System.Threading.Thread.CurrentThread.CurrentCulture.TextInfo.ToTitleCase(searchterm) + "</span>");
+        }
+        catch
+        {
+            return item;
+        }
+    }
+
+    protected void DefaultView()
+    {
+        //if (Pages)
+        //{
+        //    DataSet currPage = _page.getPageByTitle(_page.getCurrentPage().Replace(".aspx", ""));
+
+        //    if (currPage.Tables[0].Rows.Count > 0)
+        //    {
+        //        DataRow pg = currPage.Tables[0].Rows[0];
+
+        //        categoryid = _category.findCategory(pg["alias"].ToString());
+
+        //        if (categoryid > 0)
+        //        {
+        //            rptSubCategories.DataSource = _category.getAllCategoriesByType(categoryid, _category.getCategoryTypeByName("Product"));
+        //            rptSubCategories.DataBind();
+
+        //            if (rptSubCategories.Items.Count == 0)
+        //            {
+        //                lblEmpty.Visible = true;
+        //            }
+        //            else
+        //            {
+        //                lblEmpty.Visible = false;
+        //            }
+
+        //        }
+        //    }
+        //}
+        //else
+        //{
+        //    if (Request.QueryString["categoryid"] != null)
+        //    {
+        //        try
+        //        {
+        //            categoryid = Convert.ToInt32(Request.QueryString["categoryid"]);
+        //        }
+        //        catch { }
+
+        //        if (categoryid > 0)
+        //        {
+        //            rptSubCategories.DataSource = _category.getAllCategoriesByType(categoryid, _category.getCategoryTypeByName("Product"));
+        //            rptSubCategories.DataBind();
+
+        //            if (rptSubCategories.Items.Count == 0)
+        //            {
+        //                lblEmpty.Visible = true;
+        //            }
+        //            else
+        //            {
+        //                lblEmpty.Visible = false;
+        //            }
+
+        //        }
+        //    }
+        //}
+
+        mvProducts.SetActiveView(categoryView);
+        int newcategoryid = 0;
+        
+
+        //MACHINES BUTTON
+        newcategoryid = _category.findCategory("Machines", _category.getCategoryTypeByName("Product"));
+        
+        PolygonHotSpot pNewSpot = new PolygonHotSpot();
+        pNewSpot.Coordinates = "6,8,337,8,337,78,8,78,8,70,173,70,173,59,19,59,19,70,6,70,6,8";
+        pNewSpot.NavigateUrl = hlMachinesButton.NavigateUrl + newcategoryid.ToString();
+        imapMachinesButton.HotSpots.Add(pNewSpot);
+        
+        hlMachinesButton.NavigateUrl += _category.findCategory("Machines", _category.getCategoryTypeByName("Product")).ToString();
+        RectangleHotSpot newSpot = new RectangleHotSpot();
+        newSpot.Bottom = 70;
+        newSpot.Left = 19;
+        newSpot.Right = 63;
+        newSpot.Top = 59;
+        newcategoryid = _category.findCategory("Janitorial", _category.getCategoryTypeByName("Product"), _category.findCategory("Machines", _category.getCategoryTypeByName("Product")));
+        if (newcategoryid == 0)
+        {
+            newcategoryid = _category.findCategory("Janitorial Supplies", _category.getCategoryTypeByName("Product"), _category.findCategory("Machines", _category.getCategoryTypeByName("Product")));
+        }
+        if (newcategoryid == 0)
+        {
+            newcategoryid = _category.findCategory("Machines", _category.getCategoryTypeByName("Product"));
+        }
+        newSpot.NavigateUrl = "/products/products.aspx?action=viewProducts&categoryid=" + newcategoryid.ToString();
+        imapMachinesButton.HotSpots.Add(newSpot);
+
+        newSpot = new RectangleHotSpot();
+        newSpot.Bottom = 70;
+        newSpot.Left = 70;
+        newSpot.Right = 166;
+        newSpot.Top = 59;
+        newcategoryid = _category.findCategory("Disaster Restoration", _category.getCategoryTypeByName("Product"), _category.findCategory("Machines", _category.getCategoryTypeByName("Product")));
+        if (newcategoryid == 0)
+        {
+            newcategoryid = _category.findCategory("Machines", _category.getCategoryTypeByName("Product"));
+        }
+        newSpot.NavigateUrl = "/products/products.aspx?action=viewProducts&categoryid=" + newcategoryid.ToString();
+        imapMachinesButton.HotSpots.Add(newSpot);
+
+        newSpot = new RectangleHotSpot();
+        newSpot.Bottom = 70;
+        newSpot.Left = 173;
+        newSpot.Right = 252;
+        newSpot.Top = 59;
+        newcategoryid = _category.findCategory("Carpet Cleaning", _category.getCategoryTypeByName("Product"), _category.findCategory("Machines", _category.getCategoryTypeByName("Product")));
+        if (newcategoryid == 0)
+        {
+            newcategoryid = _category.findCategory("Machines", _category.getCategoryTypeByName("Product"));
+        }
+        newSpot.NavigateUrl = "/products/products.aspx?action=viewProducts&categoryid=" + newcategoryid.ToString();
+        imapMachinesButton.HotSpots.Add(newSpot);
+
+
+        //CHEMICAL SOLUTIONS BUTTON
+        pNewSpot = new PolygonHotSpot();
+        pNewSpot.Coordinates = "6,8,337,8,337,78,8,78,8,70,173,70,173,59,19,59,19,70,6,70,6,8";
+        newcategoryid = _category.findCategory("Chemical Solutions", _category.getCategoryTypeByName("Product"));
+        pNewSpot.NavigateUrl = hlChemicalButton.NavigateUrl + newcategoryid.ToString();
+        imapChemicalButton.HotSpots.Add(pNewSpot);
+        
+        hlChemicalButton.NavigateUrl += _category.findCategory("Chemical Solutions", _category.getCategoryTypeByName("Product")).ToString();
+        newSpot = new RectangleHotSpot();
+        newSpot.Bottom = 70;
+        newSpot.Left = 19;
+        newSpot.Right = 63;
+        newSpot.Top = 59;
+        newcategoryid = _category.findCategory("Janitorial", _category.getCategoryTypeByName("Product"), _category.findCategory("Chemical Solutions", _category.getCategoryTypeByName("Product")));
+        if (newcategoryid == 0)
+        {
+            newcategoryid = _category.findCategory("Janitorial Supplies", _category.getCategoryTypeByName("Product"), _category.findCategory("Chemical Solutions", _category.getCategoryTypeByName("Product")));
+        }
+        if (newcategoryid == 0)
+        {
+            newcategoryid = _category.findCategory("Chemical Solutions", _category.getCategoryTypeByName("Product"));
+        }
+        newSpot.NavigateUrl = "/products/products.aspx?action=viewProducts&categoryid=" + newcategoryid.ToString();
+        imapChemicalButton.HotSpots.Add(newSpot);
+
+        newSpot = new RectangleHotSpot();
+        newSpot.Bottom = 70;
+        newSpot.Left = 70;
+        newSpot.Right = 166;
+        newSpot.Top = 59;
+        newcategoryid = _category.findCategory("Disaster Restoration", _category.getCategoryTypeByName("Product"), _category.findCategory("Chemical Solutions", _category.getCategoryTypeByName("Product")));
+        if (newcategoryid == 0)
+        {
+            newcategoryid = _category.findCategory("Chemical Solutions", _category.getCategoryTypeByName("Product"));
+        }
+        newSpot.NavigateUrl = "/products/products.aspx?action=viewProducts&categoryid=" + newcategoryid.ToString();
+        imapChemicalButton.HotSpots.Add(newSpot);
+
+        newSpot = new RectangleHotSpot();
+        newSpot.Bottom = 70;
+        newSpot.Left = 173;
+        newSpot.Right = 252;
+        newSpot.Top = 59;
+        newcategoryid = _category.findCategory("Carpet Cleaning", _category.getCategoryTypeByName("Product"), _category.findCategory("Chemical Solutions", _category.getCategoryTypeByName("Product")));
+        if (newcategoryid == 0)
+        {
+            newcategoryid = _category.findCategory("Chemical Solutions", _category.getCategoryTypeByName("Product"));
+        }
+        newSpot.NavigateUrl = "/products/products.aspx?action=viewProducts&categoryid=" + newcategoryid.ToString();
+        imapChemicalButton.HotSpots.Add(newSpot);
+
+
+        //ACCESSORIES BUTTON
+        pNewSpot = new PolygonHotSpot();
+        pNewSpot.Coordinates = "6,8,337,8,337,78,8,78,8,70,173,70,173,59,19,59,19,70,6,70,6,8";
+        newcategoryid = _category.findCategory("Accessories", _category.getCategoryTypeByName("Product"));
+        pNewSpot.NavigateUrl = hlAccessoriesButton.NavigateUrl + newcategoryid.ToString();
+        imapAccessoriesButton.HotSpots.Add(pNewSpot);
+
+        hlAccessoriesButton.NavigateUrl += _category.findCategory("Accessories", _category.getCategoryTypeByName("Product")).ToString();
+        newSpot = new RectangleHotSpot();
+        newSpot.Bottom = 70;
+        newSpot.Left = 19;
+        newSpot.Right = 63;
+        newSpot.Top = 59;
+        newcategoryid = _category.findCategory("Janitorial", _category.getCategoryTypeByName("Product"), _category.findCategory("Accessories", _category.getCategoryTypeByName("Product")));
+        if (newcategoryid == 0)
+        {
+            newcategoryid = _category.findCategory("Janitorial Supplies", _category.getCategoryTypeByName("Product"), _category.findCategory("Accessories", _category.getCategoryTypeByName("Product")));
+        }
+        if (newcategoryid == 0)
+        {
+            newcategoryid = _category.findCategory("Accessories", _category.getCategoryTypeByName("Product"));
+        }
+        newSpot.NavigateUrl = "/products/products.aspx?action=viewProducts&categoryid=" + newcategoryid.ToString();
+        imapAccessoriesButton.HotSpots.Add(newSpot);
+
+        newSpot = new RectangleHotSpot();
+        newSpot.Bottom = 70;
+        newSpot.Left = 70;
+        newSpot.Right = 166;
+        newSpot.Top = 59;
+        newcategoryid = _category.findCategory("Disaster Restoration", _category.getCategoryTypeByName("Product"), _category.findCategory("Accessories", _category.getCategoryTypeByName("Product")));
+        if (newcategoryid == 0)
+        {
+            newcategoryid = _category.findCategory("Accessories", _category.getCategoryTypeByName("Product"));
+        }
+        newSpot.NavigateUrl = "/products/products.aspx?action=viewProducts&categoryid=" + newcategoryid.ToString();
+        imapAccessoriesButton.HotSpots.Add(newSpot);
+
+        newSpot = new RectangleHotSpot();
+        newSpot.Bottom = 70;
+        newSpot.Left = 173;
+        newSpot.Right = 252;
+        newSpot.Top = 59;
+        newcategoryid = _category.findCategory("Carpet Cleaning", _category.getCategoryTypeByName("Product"), _category.findCategory("Accessories", _category.getCategoryTypeByName("Product")));
+        if (newcategoryid == 0)
+        {
+            newcategoryid = _category.findCategory("Accessories", _category.getCategoryTypeByName("Product"));
+        }
+        newSpot.NavigateUrl = "/products/products.aspx?action=viewProducts&categoryid=" + newcategoryid.ToString();
+        imapAccessoriesButton.HotSpots.Add(newSpot);
+
+
+        //TRAINING BUTTON
+        pNewSpot = new PolygonHotSpot();
+        pNewSpot.Coordinates = "6,8,337,8,337,78,8,78,8,70,173,70,173,59,19,59,19,70,6,70,6,8";
+        newcategoryid = _category.findCategory("Training", _category.getCategoryTypeByName("Product"));
+        pNewSpot.NavigateUrl = hlTrainingButton.NavigateUrl + newcategoryid.ToString();
+        imapTrainingButton.HotSpots.Add(pNewSpot);
+
+        hlTrainingButton.NavigateUrl += _category.findCategory("Training", _category.getCategoryTypeByName("Product")).ToString();
+        newSpot = new RectangleHotSpot();
+        newSpot.Bottom = 70;
+        newSpot.Left = 19;
+        newSpot.Right = 63;
+        newSpot.Top = 59;
+        newcategoryid = _category.findCategory("Janitorial", _category.getCategoryTypeByName("Product"), _category.findCategory("Training", _category.getCategoryTypeByName("Product")));
+        if (newcategoryid == 0)
+        {
+            newcategoryid = _category.findCategory("Janitorial Supplies", _category.getCategoryTypeByName("Product"), _category.findCategory("Training", _category.getCategoryTypeByName("Product")));
+        }
+        if (newcategoryid == 0)
+        {
+            newcategoryid = _category.findCategory("Training", _category.getCategoryTypeByName("Product"));
+        }
+        newSpot.NavigateUrl = "/products/products.aspx?action=viewProducts&categoryid=" + newcategoryid.ToString();
+        imapTrainingButton.HotSpots.Add(newSpot);
+
+        newSpot = new RectangleHotSpot();
+        newSpot.Bottom = 70;
+        newSpot.Left = 70;
+        newSpot.Right = 166;
+        newSpot.Top = 59;
+        newcategoryid = _category.findCategory("Disaster Restoration", _category.getCategoryTypeByName("Product"), _category.findCategory("Training", _category.getCategoryTypeByName("Product")));
+        if (newcategoryid == 0)
+        {
+            newcategoryid = _category.findCategory("Training", _category.getCategoryTypeByName("Product"));
+        }
+        newSpot.NavigateUrl = "/products/products.aspx?action=viewProducts&categoryid=" + newcategoryid.ToString();
+        imapTrainingButton.HotSpots.Add(newSpot);
+
+        newSpot = new RectangleHotSpot();
+        newSpot.Bottom = 70;
+        newSpot.Left = 173;
+        newSpot.Right = 252;
+        newSpot.Top = 59;
+        newcategoryid = _category.findCategory("Carpet Cleaning", _category.getCategoryTypeByName("Product"), _category.findCategory("Training", _category.getCategoryTypeByName("Product")));
+        if (newcategoryid == 0)
+        {
+            newcategoryid = _category.findCategory("Training", _category.getCategoryTypeByName("Product"));
+        }
+        newSpot.NavigateUrl = "/products/products.aspx?action=viewProducts&categoryid=" + newcategoryid.ToString();
+        imapTrainingButton.HotSpots.Add(newSpot);
+
+        //Response.Redirect(Request.ServerVariables["URL"] + "?action=viewProducts&categoryid=0");
+    }
+    public int CurrentPage
+    {
+        get
+        {
+            // look for current page in ViewState
+            object o = this.ViewState["_CurrentPage"];
+            if (o == null)
+                return 0;	// default to showing the first page
+            else
+                return (int)o;
+        }
+
+        set
+        {
+            this.ViewState["_CurrentPage"] = value;
+        }
+    }
+
+    public string GetCategoryString(int catid, string catString)
+    {
+        if (catid == 0)
+        {
+            return "";
+        }
+        int parentid = _category.ParentID(catid);
+        if (parentid == 0)
+        {
+            return " - " + _category.getCategoryNameByID(catid) + catString;
+        }
+        else
+        {
+            catString = " - " + _category.getCategoryNameByID(catid) + catString;
+            catString = GetCategoryString(parentid, catString);
+            return catString;
+        }
+    }
+    public string GetCategoryStringWithLinks(int catid, string catString)
+    {
+        if (catid == 0)
+        {
+            return "";
+        }
+        int parentid = _category.ParentID(catid);
+        if (parentid == 0)
+        {
+            return "<a href=\""+Request.ServerVariables["URL"] + "?action=viewProducts&categoryid="+catid+"\">"+_category.getCategoryNameByID(catid) + "</a>" + catString;
+        }
+        else
+        {
+            catString = " >> " + "<a href=\"" + Request.ServerVariables["URL"] + "?action=viewProducts&categoryid=" + catid + "\">" + _category.getCategoryNameByID(catid) + "</a>" + catString;
+            catString = GetCategoryStringWithLinks(parentid, catString);
+            return catString;
+        }
+    }
+
+    public string RenderManufacturer(string manufacturer)
+    {
+        if (manufacturer != "")
+        {
+            return "Manufactured By: " + ProcessHighlight(manufacturer) + "<br />";
+        }
+        return "";
+    }
+    public string GetCategories(int productid)
+    {
+        DataSet allCat = _product.GetAllCategoriesForProduct(productid);
+        string categoryLists = "";
+        foreach (DataRow cat in allCat.Tables[0].Rows)
+        {
+            categoryLists += GetCategoryStringWithLinks(Convert.ToInt32(cat["categoryid"]), "") + "<br />";
+        }
+        return categoryLists;
+    }
+
+    public string GetDisplayPrice(int productid)
+    {
+        DataSet allPrices = _product.GetDisplayPriceForProduct(productid);
+        if (allPrices.Tables[0].Rows.Count > 0)
+        {
+            DataRow pg = allPrices.Tables[0].Rows[0];
+            return String.Format("{0:C}", pg["price"]);
+        }
+        else
+        {
+            return "Call For Price";
+        }
+    }
+}

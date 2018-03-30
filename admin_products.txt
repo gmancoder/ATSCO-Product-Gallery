@@ -1,0 +1,689 @@
+<%@ Page Language="C#" MasterPageFile="~/admin/App_Master/admin.master" ValidateRequest="false" AutoEventWireup="true" CodeFile="products.aspx.cs" Inherits="admin_modules_product_gallery_products" Title="Untitled Page" %>
+<%@ Register TagPrefix="FCKeditorV2" Namespace="FredCK.FCKeditorV2" Assembly="FredCK.FCKeditorV2"  %>
+
+<asp:Content ID="Content1" ContentPlaceHolderID="SideBox" Runat="Server">
+    <div class="boxheader">Product Gallery</div>
+    <div class="box">
+        <p><a href="products.aspx">Products Overview</a></p>
+        <p><asp:HyperLink ID="AddProductLink" NavigateUrl="?action=add" runat="server">Add New Product</asp:HyperLink></p>
+        <p><asp:HyperLink ID="ExportProductList" NavigateUrl="?action=export" runat="server">Export Product List</asp:HyperLink></p>
+    </div>
+    <div class="boxheader">Product Categories</div>
+    <div class="box">
+        <p><a href="products_category.aspx">Category Overview</a></p>
+        <p><asp:HyperLink ID="AddProductCategoryLink" NavigateUrl="products_category.aspx?action=add" runat="server">Add New Product Category</asp:HyperLink></p>
+</asp:Content>
+<asp:Content ID="Content2" ContentPlaceHolderID="PageContent" Runat="Server">
+    <script type="text/javascript">
+        function confrm()
+        {
+            return confirm("Are you sure you want to delete?");
+        }
+        function imposeMaxLength(e, Object, MaxLen)
+            {
+                if(e.keyCode != 8 && e.keyCode != 46) {
+                    return (Object.value.length <= MaxLen);
+                }
+                return true;
+            }
+    </script>
+    <asp:MultiView ID="mvProducts" runat="server">
+        <asp:View ID="overview" runat="server">
+        <div style="float:left;">
+                <div style="margin-bottom:10px;text-align:center;width:770px;">
+                    <label style="width:175px;"><b>Filter by Categories: </b></label>
+                    <asp:DropDownList ID="ddlCategories" CssClass="dropdown" AutoPostBack="true" runat="server" AppendDataBoundItems="true" DataTextField="title" DataValueField="categoryid">
+                        <asp:ListItem Value="0">All Categories</asp:ListItem>
+                    </asp:DropDownList>
+                    <br />
+                </div>
+                <asp:Label ID="lblEmpty" Visible="false" runat="server" Text="No Products to show"></asp:Label>
+                <asp:GridView ID="gvProducts" AllowPaging="true" PageSize="18" PagerSettings-Mode="Numeric" PagerSettings-Position="Bottom" AutoGenerateColumns="false" CssClass="GridView" runat="server" CellPadding="2">
+                    <HeaderStyle HorizontalAlign="left" BackColor="#F3F3F3" Height="20px"  Font-Bold="True" />
+                    <PagerStyle HorizontalAlign="right" Font-Bold="true" CssClass="paging" />
+                    <Columns>
+                        <asp:TemplateField >
+                            <HeaderTemplate>
+                                &nbsp;<a href="products.aspx?sort=i&dir=<%=dir2%>">
+                                    ID
+                                </a>
+                                <img src="/admin/images/<%=arrowi%>.gif" alt="Sort" />
+                            </HeaderTemplate>
+                            <ItemStyle Width="30px" />
+                            <ItemTemplate>
+                                &nbsp;<%# Eval("productid") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField >
+                            <HeaderTemplate>
+                                &nbsp;<a href="products.aspx?sort=ac&dir=<%=dir2%>">
+                                    ATSCO Code
+                                </a>
+                                <img src="/admin/images/<%=arrowac%>.gif" alt="Sort" />
+                            </HeaderTemplate>
+                            <ItemStyle Width="30px" />
+                            <ItemTemplate>
+                                &nbsp;<%# Eval("acode") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField >
+                            <HeaderTemplate>
+                                &nbsp;<a href="products.aspx?sort=n&dir=<%=dir2%>">
+                                    Name
+                                </a>
+                                <img src="/admin/images/<%=arrown%>.gif" alt="Sort" />
+                            </HeaderTemplate>
+                            <ItemStyle Width="180px" />
+                            <ItemTemplate>
+                                &nbsp;<a href="products.aspx?action=view&productid=<%# Eval("productid") %>"><%# Eval("productname") %></a>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField >
+                            <HeaderTemplate>
+                                &nbsp;<a href="products.aspx?sort=c&dir=<%=dir2%>">
+                                    Category
+                                </a>
+                                <img src="/admin/images/<%=arrowc%>.gif" alt="Sort" />
+                            </HeaderTemplate>
+                            <ItemStyle Width="160px" />
+                            <ItemTemplate>
+                                &nbsp;<%# PrintLevelString(Convert.ToInt32(Eval("categoryid")), "") %> <%# Eval("category") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <%--<asp:TemplateField >
+                            <HeaderTemplate>
+                                <a href="products.aspx?sort=p&dir=<%=dir2%>">
+                                    Price
+                                </a>
+                                <img src="/admin/images/<%=arrowp%>.gif" alt="Sort" />
+                            </HeaderTemplate>
+                            <ItemStyle Width="70px" />
+                            <ItemTemplate>
+                                <%# String.Format("{0:C}", Eval("price")) %>
+                            </ItemTemplate>
+                        </asp:TemplateField>--%>
+                        <%--<asp:TemplateField >
+                            <HeaderTemplate>
+                                <a href="products.aspx?sort=f&dir=<%=dir2%>">
+                                    Feature
+                                </a>
+                                <img src="/admin/images/<%=arrowf%>.gif" alt="Sort" />
+                            </HeaderTemplate>
+                            <ItemStyle Width="70px" HorizontalAlign="center" />
+                            <ItemTemplate>
+                               <a href="products.aspx?action=toggle&col=feature&productid=<%# Eval("productid") %>">
+                                    <img alt="Feature" src='<%# _product.Active(Convert.ToInt32(Eval("feature"))) %>' />
+                               </a>
+                            </ItemTemplate>
+                        </asp:TemplateField>--%>
+                        <asp:TemplateField >
+                            <HeaderTemplate>
+                                &nbsp;<a href="products.aspx?sort=a&dir=<%=dir2%>">
+                                    Active
+                                </a>
+                                <img src="/admin/images/<%=arrowa%>.gif" alt="Sort" />
+                            </HeaderTemplate>
+                            <ItemStyle Width="50px" HorizontalAlign="center" />
+                            <ItemTemplate>
+                               <a href="products.aspx?action=toggle&col=purchase&productid=<%# Eval("productid") %>">
+                                    <img alt="Feature" src='<%# _product.Active(Convert.ToInt32(Eval("purchase"))) %>' />
+                               </a>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField >
+                            <HeaderTemplate>
+                                &nbsp;<a href="products.aspx?sort=fe&dir=<%=dir2%>">
+                                    Feature
+                                </a>
+                                <img src="/admin/images/<%=arrowfe%>.gif" alt="Sort" />
+                            </HeaderTemplate>
+                            <ItemStyle Width="50px" HorizontalAlign="center" />
+                            <ItemTemplate>
+                               <a href="products.aspx?action=toggle&col=feature&productid=<%# Eval("productid") %>">
+                                    <img alt="Feature" src='<%# _product.Active(Convert.ToInt32(Eval("feature"))) %>' />
+                               </a>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField ShowHeader="False">
+                            <HeaderTemplate>Action</HeaderTemplate>
+                            <HeaderStyle HorizontalAlign="center" />
+                            <ItemStyle HorizontalAlign="Center" Width="100px" />
+                            <ItemTemplate>
+                                <a href='?action=view&productid=<%# Eval("productid") %>'>                            
+                                    <asp:Image ID="view" runat="server" ImageUrl="~/Admin/images/magnifySM.jpg" BorderStyle="none" ImageAlign="AbsMiddle" AlternateText="View" />
+                                </a>
+                                <a href='?action=edit&productid=<%# Eval("productid") %>'>                            
+                                    <asp:Image ID="edit" runat="server" ImageUrl="~/Admin/images/editMD.jpg" Width="20" Height="20" ImageAlign="AbsMiddle" BorderStyle="none" AlternateText="Edit" />
+                                </a>
+                                <a onclick="return confrm();" href='?action=delete&productid=<%# Eval("productid") %>'>  
+                                    <asp:Image ID="delete" runat="server" ImageUrl="~/Admin/images/trashEmptySM.gif" BorderStyle="none" ImageAlign="AbsMiddle" AlternateText="Delete" />
+                                </a>
+                            </ItemTemplate>   
+                        </asp:TemplateField>
+                     </Columns>
+                </asp:GridView>
+            </div>
+        </asp:View>
+        
+        <asp:View ID="form" runat="server">
+            
+            <div class="tab-pane" id="tabPane1" style="border-bottom: solid 1px #d8dfea;">
+
+                <script type="text/javascript">
+                    tp1 = new WebFXTabPane( document.getElementById( "tabPane1" ), false );
+                </script>
+
+                <script type="text/javascript">
+                    // Sets setSelectedIndex instance variable of current tab object to tab parameter
+                    function getNextTab(tab)
+                    {  
+                        tp1.setSelectedIndex(tab);
+                    }
+                </script>
+
+                <div class="tab-page" id="tabPage1">
+	                <h2 class="tab">General</h2>
+	                
+	                <script type="text/javascript">tp1.addTabPage( document.getElementById( "tabPage1" ) );</script>
+                    <div class="formContainer">
+                        <div>Fill out the form below to get started.  All <span class="required">red bold</span> fields are required.</div>
+                        <hr /><br />
+                        
+                        <label class="required">Name: </label>
+                        <asp:TextBox ID="txtName" runat="server" MaxLength="100" Width="180px"></asp:TextBox>&nbsp;
+                        <asp:RequiredFieldValidator ID="rfvName" runat="server" ErrorMessage="Enter a Title" ControlToValidate="txtName" ValidationGroup="Product"></asp:RequiredFieldValidator><br />
+                        
+                        <label class="required">Categories: </label>
+                        <asp:ListBox ID="lstCategories" runat="server" SelectionMode="multiple" Rows="4"></asp:ListBox>
+                        <asp:RequiredFieldValidator ID="rfvCategory" runat="server" ErrorMessage="Select a category" ControlToValidate="lstCategories" ValidationGroup="Product"></asp:RequiredFieldValidator><br />
+                        <span class="messages">Press and hold CTRL while selecting to select multiple items</span>
+                        
+                        <%--<label class="required">Price: </label>
+                        <asp:TextBox ID="txtPrice" runat="server" Width="100px" MaxLength="10"></asp:TextBox>&nbsp;
+                        <asp:RequiredFieldValidator ID="rfvPrice" runat="server" ErrorMessage="Enter the price" ControlToValidate="txtPrice" ValidationGroup="Product"></asp:RequiredFieldValidator>
+                        <asp:RegularExpressionValidator ID="revPrice" runat="server" ValidationExpression="\d+[\.]?\d{2}?" ErrorMessage="Enter the price in ##.## format" ControlToValidate="txtPrice" ValidationGroup="Product"></asp:RegularExpressionValidator><br />
+                        <span class="messages">(Enter in the form ##.##)</span><br /><br />
+                        
+                        <label class="required">Weight: </label>
+                        <asp:TextBox ID="txtWeight" runat="server" Width="100px" MaxLength="10"></asp:TextBox>&nbsp;
+                        <asp:RequiredFieldValidator ID="rfvWeight" runat="server" ErrorMessage="Enter the price" ControlToValidate="txtPrice" ValidationGroup="Product"></asp:RequiredFieldValidator>
+                        <asp:RegularExpressionValidator ID="revWeight" runat="server" ValidationExpression="\d+" ErrorMessage="Enter the weight in lbs. numbers only" ControlToValidate="txtWeight" ValidationGroup="Product"></asp:RegularExpressionValidator><br />
+                        <span class="messages">(Enter the weight in lbs. Numbers Only)</span><br /><br />
+                        
+                        <label>Hazardous: </label>
+                        <asp:CheckBox ID="chkHazard" runat="server" /><br />--%>
+                        
+                        <label>Details: </label>
+                        <FCKeditorV2:FCKeditor id="fckDetails" Height="200" BasePath="/admin/mwseditor/" runat="server"></FCKeditorV2:FCKeditor><br />
+                    </div>
+                </div>
+                
+                <div class="tab-page" id="tabPage2">
+	                <h2 class="tab">Additional Information</h2>
+	                
+	                <script type="text/javascript">tp1.addTabPage( document.getElementById( "tabPage2" ) );</script>
+                    <div class="formContainer">
+                        <div>Fill out the form below to get started.  All <span class="required">red bold</span> fields are required.</div>
+                        <hr /><br />
+                        
+                        <label>Manufacturer: </label>
+                        <asp:TextBox ID="txtManufaturer" runat="server" Width="180px" MaxLength="250"></asp:TextBox><br />
+                        
+                        <label>ATSCO Code: </label>
+                        <asp:TextBox ID="txtACode" runat="server" Width="180px" MaxLength="50"></asp:TextBox><br />
+                        
+                        <label>Available Sizes: </label>
+                        <asp:TextBox ID="txtSizes" runat="server" Width="180px" MaxLength="200"></asp:TextBox><br />
+                        
+                        <label>Features: </label>
+                        <FCKeditorV2:FCKeditor id="fckFeatures" Height="200" BasePath="/admin/mwseditor/" runat="server"></FCKeditorV2:FCKeditor><br />
+                        
+                        <label>Tags: </label>
+                        <asp:TextBox ID="txtTags" runat="server" Width="180px" MaxLength="220"></asp:TextBox><br />
+                        
+                        <label>Active: </label>
+                        <asp:CheckBox ID="chkActive" runat="server" /><br />
+                        
+                        <%--<label>Link to Description: </label>--%>
+                        <asp:CheckBox ID="chkViewDesc" Visible="false" runat="server" /><%--<br />--%>
+                    </div>
+                </div>
+                
+                <div class="tab-page" id="tabPage3">
+	                <h2 class="tab">Files</h2>
+	                
+	                <script type="text/javascript">tp1.addTabPage( document.getElementById( "tabPage3" ) );</script>
+                    <div class="formContainer">
+                        <div>Fill out the form below to get started.  All <span class="required">red bold</span> fields are required.</div>
+                        <hr /><br />
+                        
+                        <label>Image: </label>
+                        <asp:FileUpload ID="fulImage" runat="server" />&nbsp;
+                        <asp:Label ID="lblWrongType" runat="server" Visible="false" CssClass="required" Font-Bold="false" Text="Image Type Invalid, please check and try again"></asp:Label><br />
+                        <span class="messages">(Only GIF, JPG, PNG, BMP, WMF, and TIF files accepted)</span><br /><br />
+                        
+                        <asp:Panel ID="currImage" Visible="false" runat="server">
+                            <label>Current Image: <br />[<a href="?action=removeImage&productid=<%=productid %>">Remove</a>]</label>
+                            <asp:Hyperlink ID="hlCurrImage" runat="server"><asp:Image BorderStyle="none" ID="imgCurrentImg" runat="server" /></asp:Hyperlink><br />
+                            <span class="messages">To Keep current image, leave field above blank</span><br /><br />
+                        </asp:Panel>
+                        
+                        <label>MSDS Document</label>
+                        <asp:FileUpload ID="fileMSDS" runat="Server" />&nbsp;
+                        <asp:Label ID="lblWrongType2" runat="server" Visible="false" CssClass="required" Font-Bold="false" Text="Document Type Invalid, please check and try again"></asp:Label><br />
+                        <span class="messages">(Only PDF and DOC files accepted)</span><br /><br />
+                        
+                        <asp:Panel ID="currDocument" Visible="false" runat="server">
+                            <label>Current Document</label>
+                            <asp:HyperLink ID="hlCurrDocument" runat="Server">View</asp:HyperLink><br />
+                            <span class="messages">To Keep current document, leave field above blank</span><br /><br />
+                        </asp:Panel>
+                        
+                        <label>Specification Document</label>
+                        <asp:FileUpload ID="fileSpec" runat="Server" />&nbsp;
+                        <asp:Label ID="lblWrongType3" runat="server" Visible="false" CssClass="required" Font-Bold="false" Text="Document Type Invalid, please check and try again"></asp:Label><br />
+                        <span class="messages">(Only PDF and DOC files accepted)</span><br /><br />
+                        
+                        <asp:Panel ID="pnlCurrSpec" Visible="false" runat="server">
+                            <label>Current Document</label>
+                            <asp:HyperLink ID="hlCurrSpec" runat="Server">View</asp:HyperLink><br />
+                            <span class="messages">To Keep current document, leave field above blank</span><br /><br />
+                        </asp:Panel>
+                        
+                    </div>
+                </div>
+                <div class="tab-page" id="tabPage4">
+	                <h2 class="tab">Feature Box</h2>
+	                
+	                <script type="text/javascript">tp1.addTabPage( document.getElementById( "tabPage4" ) );</script>
+                    <div class="formContainer">
+                        <div>Fill out the form below to get started.  All <span class="required">red bold</span> fields are required.</div>
+                        <hr /><br />
+                        
+                        <label>Feature: </label>
+                        <asp:CheckBox ID="chkFeature" Visible="true" runat="server" /><br />
+                        
+                        <label>Short Title: <br /><span style="font:bold 9px Arial;">(Limit 20 characters)</span></label>
+                        <asp:TextBox ID="txtShortTitle" runat="server" Width="180px" MaxLength="20"></asp:TextBox><br />
+                        
+                        <label>Summary: <br /><span style="font:bold 9px Arial;">(Limit 110 characters)</span></label>
+                        <asp:TextBox ID="txtSummary" Visible="true" onkeypress="return imposeMaxLength(event, this, 110);" runat="server" TextMode="multiLine" Width="380px" Height="55px"></asp:TextBox>&nbsp;
+                        <br />
+                        
+                    </div>
+                </div>
+                
+                <div class="tab-page" id="tabPage5">
+	                <h2 class="tab">Pricing</h2>
+	                
+	                <script type="text/javascript">tp1.addTabPage( document.getElementById( "tabPage5" ) );</script>
+                    <div class="formContainer">
+                        <div>Fill out the form below to get started.  All <span class="required">red bold</span> fields are required.</div>
+                        <hr /><br />
+                        
+                        <label>Price 1: </label>
+                        <asp:TextBox ID="txtPrice1" runat="server" Width="50px" MaxLength="10"></asp:TextBox>
+                        <label style="width:50px;margin:0px 5px;">Per</label>
+                        <asp:DropDownList ID="ddlPriceType1" runat="server" AppendDataBoundItems="true" DataTextField="typename" DataValueField="pricetypeid">
+                            <asp:ListItem Value="0">- Select -</asp:ListItem>
+                        </asp:DropDownList>
+                        <div style="float:left;width:50px;">&nbsp;</div>
+                        <asp:RadioButton ID="rblPrice1IsPrimary" Checked="true" runat="server" GroupName="PriceDisplay" />
+                        <label style="margin-left:7px;">Display On Listing</label>
+                        &nbsp;
+                        <asp:RegularExpressionValidator ID="revPriceType1" runat="server" ControlToValidate="txtPrice1" ErrorMessage="enter numbers and decimals only" ValidationExpression="[0-9\.]*"></asp:RegularExpressionValidator>
+                        <asp:Label ID="lblMissingType1" runat="server" Visible="false" CssClass="required" Text="Select a type"></asp:Label>
+                        <br />
+                        
+                        <label>Price 2: </label>
+                        <asp:TextBox ID="txtPrice2" runat="server" Width="50px" MaxLength="10"></asp:TextBox>
+                        <label style="width:50px;margin:0px 5px;">Per</label>
+                        <asp:DropDownList ID="ddlPriceType2" runat="server" AppendDataBoundItems="true" DataTextField="typename" DataValueField="pricetypeid">
+                            <asp:ListItem Value="0">- Select -</asp:ListItem>
+                        </asp:DropDownList><div style="float:left;width:50px;">&nbsp;</div>
+                        <asp:RadioButton ID="rblPrice2IsPrimary" runat="server" GroupName="PriceDisplay" />
+                        <label style="margin-left:7px;">Display On Listing</label>
+                        &nbsp;
+                        <asp:RegularExpressionValidator ID="revPriceType2" runat="server" ControlToValidate="txtPrice2" ErrorMessage="enter numbers and decimals only" ValidationExpression="[0-9\.]*"></asp:RegularExpressionValidator>
+                        <asp:Label ID="lblMissingType2" runat="server" Visible="false" CssClass="required" Text="Select a type"></asp:Label>
+                        <br />
+                        
+                        <label>Price 3: </label>
+                        <asp:TextBox ID="txtPrice3" runat="server" Width="50px" MaxLength="10"></asp:TextBox>
+                        <label style="width:50px;margin:0px 5px;">Per</label>
+                        <asp:DropDownList ID="ddlPriceType3" runat="server" AppendDataBoundItems="true" DataTextField="typename" DataValueField="pricetypeid">
+                            <asp:ListItem Value="0">- Select -</asp:ListItem>
+                        </asp:DropDownList><div style="float:left;width:50px;">&nbsp;</div>
+                        <asp:RadioButton ID="rblPrice3IsPrimary" runat="server" GroupName="PriceDisplay" />
+                        <label style="margin-left:7px;">Display On Listing</label>
+                        &nbsp;
+                        <asp:RegularExpressionValidator ID="revPriceType3" runat="server" ControlToValidate="txtPrice3" ErrorMessage="enter numbers and decimals only" ValidationExpression="[0-9\.]*"></asp:RegularExpressionValidator>
+                        <asp:Label ID="lblMissingType3" runat="server" Visible="false" CssClass="required" Text="Select a type"></asp:Label>
+                        <br />
+                        
+                        
+                    </div>
+                </div>
+                <div class="tab-buttons formContainer">
+                    <asp:ImageButton ID="EditProductButton" runat="server" Width="80" CausesValidation="true" ValidationGroup="Product" ImageUrl="~/admin/images/submit2.gif" />
+                    <asp:ImageButton ID="AddProductButton" runat="server" Width="80" CausesValidation="true" ValidationGroup="Product" ImageUrl="~/admin/images/submit2.gif" />
+                </div>
+            </div>
+        </asp:View>
+        
+        <asp:View ID="details" runat="Server">
+            <asp:DetailsView ID="DetailsView1" runat="server" AutoGenerateRows="false" GridLines="Both" CellPadding="2" CssClass="FormView">
+                <Fields>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;ATSCO Code: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;<%# Eval("acode")%>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Product Name: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;<%# Eval("productname")%>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Short Title: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;<%# Eval("shorttitle")%>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Manufacturer: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;<%# Eval("manufacturer")%>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Categories: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            <%# GetCategories() %>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Summary: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;<%# Eval("shortdescription")%>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Sizes: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;<%# Eval("sizes")%>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Prices: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            <%# GetPrices(Convert.ToInt32(Eval("productid")))%>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Tags: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;<%# Eval("tags")%>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <%--<asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Price: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;<%# String.Format("{0:C}", Eval("price"))%>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Weight: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;<%# Eval("weight")%>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Hazardous: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;<a href="products.aspx?action=toggle&col=hazardous&redirect=view&productid=<%# Eval("productid") %>"><img src='<%# _product.Active(Convert.ToInt32(Eval("hazardous"))) %>' border="0" alt="Hazard" /></a>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>--%>
+                    <asp:TemplateField></asp:TemplateField>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Image: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;
+                            <a href="/images/products/<%# Eval("productimage") %>" target="_blank">
+                                <%# SetImage(Eval("productname").ToString(), Eval("productimage").ToString()) %>
+                            </a>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;MSDS Document: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;
+                            <%# SetDocument(Convert.ToString(Eval("msds")), "msds") %>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Specification Document: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;
+                            <%# SetDocument(Convert.ToString(Eval("spec")), "spec") %>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Details: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;<%# Eval("productdetails")%>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Features: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;<%# Eval("features")%>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <asp:TemplateField></asp:TemplateField>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Active: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;<a href="products.aspx?action=toggle&col=purchase&redirect=view&productid=<%# Eval("productid") %>"><img alt="Active" src='<%# _product.Active(Convert.ToInt32(Eval("purchase"))) %>' border="0" />
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <%--<asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Link to Description: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;<a href="products.aspx?action=toggle&col=viewDesc&redirect=view&productid=<%# Eval("productid") %>"><img src='<%# _product.Active(Convert.ToInt32(Eval("viewDesc"))) %>' border="0" alt="View Desc." />
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>--%>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Featured: </HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>
+                            &nbsp;<a href="products.aspx?action=toggle&col=feature&redirect=view&productid=<%# Eval("productid") %>"><img alt="Feature" src='<%# _product.Active(Convert.ToInt32(Eval("feature"))) %>' />
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Left" Width="500px" />
+                    </asp:TemplateField>
+                    <asp:TemplateField>
+                        <HeaderTemplate>&nbsp;Action</HeaderTemplate>
+                        <HeaderStyle HorizontalAlign="Left" Font-Bold="true" Width="100" />
+                        <ItemTemplate>&nbsp;
+                            <a href='?action=edit&productid=<%# Eval("productid") %>'>                            
+                                <asp:Image ID="edit" runat="server" ImageUrl="~/Admin/images/editMD.jpg" Width="20" Height="20" ImageAlign="AbsMiddle" BorderStyle="none" AlternateText="Edit" />
+                            </a>
+                            <a onclick="return confrm();" href='?action=delete&productid=<%# Eval("productid") %>'>  
+                                <asp:Image ID="delete" runat="server" ImageUrl="~/Admin/images/trashEmptySM.gif" BorderStyle="none" ImageAlign="AbsMiddle" AlternateText="Delete" />
+                            </a>
+                        </ItemTemplate>   
+                    </asp:TemplateField>
+                </Fields>
+            </asp:DetailsView>
+        </asp:View>
+        
+        <asp:View ID="export" runat="server">
+            <asp:GridView ID="gvExport" AllowPaging="true" PageSize="18" PagerSettings-Mode="Numeric" PagerSettings-Position="Bottom" AutoGenerateColumns="false" CssClass="GridView" runat="server" CellPadding="2">
+                    <HeaderStyle HorizontalAlign="left" BackColor="#F3F3F3" Height="20px"  Font-Bold="True" />
+                    <PagerStyle HorizontalAlign="right" Font-Bold="true" CssClass="paging" />
+                    <Columns>
+                        <asp:TemplateField >
+                            <HeaderTemplate>ID</HeaderTemplate>
+                            <ItemStyle Width="30px" />
+                            <ItemTemplate>
+                                <%# Eval("productid") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField >
+                            <HeaderTemplate>ATSCO Code</HeaderTemplate>
+                            <ItemStyle Width="30px" />
+                            <ItemTemplate>
+                                <%# Eval("acode") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField >
+                            <HeaderTemplate>Name</HeaderTemplate>
+                            <ItemStyle Width="230px" />
+                            <ItemTemplate>
+                                <%# Eval("productname") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField >
+                            <HeaderTemplate>ShortTitle</HeaderTemplate>
+                            <ItemStyle Width="230px" />
+                            <ItemTemplate>
+                                <%# Eval("shorttitle") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField >
+                            <HeaderTemplate>Manufacturer</HeaderTemplate>
+                            <ItemStyle Width="230px" />
+                            <ItemTemplate>
+                                <%# Eval("manufacturer") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField >
+                            <HeaderTemplate>Category</HeaderTemplate>
+                            <ItemStyle Width="130px" />
+                            <ItemTemplate>
+                                <%# PrintLevelString(Convert.ToInt32(Eval("categoryid")), "") %>  <%# Eval("category") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField >
+                            <HeaderTemplate>Summary</HeaderTemplate>
+                            <ItemStyle Width="130px" />
+                            <ItemTemplate>
+                                <%# Eval("shortdescription") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField >
+                            <HeaderTemplate>Details</HeaderTemplate>
+                            <ItemStyle Width="130px" />
+                            <ItemTemplate>
+                                <%# Eval("productdetails") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <%--<asp:TemplateField >
+                            <HeaderTemplate>Price</HeaderTemplate>
+                            <ItemStyle Width="70px" />
+                            <ItemTemplate>
+                                <%# String.Format("{0:C}", Eval("price")) %>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField >
+                            <HeaderTemplate>Weight</HeaderTemplate>
+                            <ItemStyle Width="130px" />
+                            <ItemTemplate>
+                                <%# Eval("weight") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>--%>
+                        <asp:TemplateField >
+                            <HeaderTemplate>Image</HeaderTemplate>
+                            <ItemStyle Width="130px" />
+                            <ItemTemplate>
+                                <%# Eval("productimage") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField >
+                            <HeaderTemplate>Feature</HeaderTemplate>
+                            <ItemStyle Width="70px" HorizontalAlign="center" />
+                            <ItemTemplate>
+                                <%# Eval("feature") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <%--<asp:TemplateField >
+                            <HeaderTemplate>Link to Description</HeaderTemplate>
+                            <ItemStyle Width="130px" />
+                            <ItemTemplate>
+                                <%# Eval("viewDesc") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>--%>
+                        <asp:TemplateField >
+                            <HeaderTemplate>Active</HeaderTemplate>
+                            <ItemStyle Width="130px" />
+                            <ItemTemplate>
+                                <%# Eval("purchase") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <%--<asp:TemplateField >
+                            <HeaderTemplate>Hazardous</HeaderTemplate>
+                            <ItemStyle Width="130px" />
+                            <ItemTemplate>
+                                <%# Eval("hazardous") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>--%>
+                        <asp:TemplateField >
+                            <HeaderTemplate>Created</HeaderTemplate>
+                            <ItemStyle Width="130px" />
+                            <ItemTemplate>
+                                <%# Eval("createddate") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField >
+                            <HeaderTemplate>Last Modified</HeaderTemplate>
+                            <ItemStyle Width="130px" />
+                            <ItemTemplate>
+                                <%# Eval("modifieddate") %>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                     </Columns>
+                </asp:GridView>
+        </asp:View>
+    </asp:MultiView>
+</asp:Content>
+
